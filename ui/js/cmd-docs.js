@@ -3,7 +3,7 @@
 window.CMD_DOCS = [
   { chapter: '일상', groups: [
     { name: '기본', cmds: [
-      { name: 'help', short: '명령어 목록, 명령어 하나 자세히', usage: ['help', 'help <명령어>'], opts: [], ex: ['help', 'help timer'], notes: ['Commands 칸(open cmds)에서 눌러 보면 더 보기 편해요.', 'Tab을 누르면 명령어 이름이 자동으로 채워져요.'] },
+      { name: 'help', short: '명령어 목록, 명령어 하나 자세히', usage: ['help', 'help <명령어>'], opts: [], ex: ['help', 'help timer'], notes: ['Commands 칸(open cmds)에서 눌러 보면 더 보기 편해요.', '치는 동안 이어질 내용이 흐린 글씨로 보이고, Tab이나 →를 누르면 그대로 채워져요. 최근에 친 명령이 먼저 나와요.'] },
       { name: 'fetch', short: '오늘 요약 (일정, D-day, KEV, CTF, 할 일…)', usage: ['fetch'], opts: [], ex: ['fetch'], notes: ['허브를 열 때 저절로 한 번 나와요.'] },
       { name: 'open', short: '사이드바 칸을 가운데로 크게', usage: ['open <칸>'], opts: [['<칸>', 'todo · weather · memo · news · kev · vuln · ctf · tools · activity · net · system · programs · patch · cmds']], ex: ['open kev', 'open cmds'], notes: ['Esc로 터미널로 돌아와요.'] },
       { name: 'clear', short: '터미널 화면 비우기', usage: ['clear'], opts: [], ex: ['clear'], notes: [] },

@@ -150,3 +150,9 @@
 .pn__card time { margin-left: auto; font-size: 0.75rem; color: var(--u-muted, #9aa); font-variant-numeric: tabular-nums; }
 .pn__card ul { margin: 8px 0 0; padding-left: 1.1em; display: grid; gap: 4px; font-size: var(--u-step-small, 0.875rem); line-height: 1.55; list-style: disc; }
 .pn__card li::marker { color: var(--u-muted, #9aa); }
+
+/* 터미널 흐린 글씨 미리 보기: 입력칸과 같은 자리·같은 글꼴로 겹친다. 친 글(i)은 투명하게 자리만 */
+.term__field { position: relative; flex: 1; min-width: 0; display: flex; }
+.term__field input { flex: 1; min-width: 0; }
+.term__ghost { position: absolute; inset: 0; overflow: hidden; white-space: pre; pointer-events: none; color: rgb(255 255 255 / 0.28); font: inherit; }
+.term__ghost i { font-style: normal; visibility: hidden; }

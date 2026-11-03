@@ -747,10 +747,11 @@
   const PS1 = '<span class="ps1"><b>urigg@hub</b>:<em>~</em>$</span>';
   const inputRow = document.createElement('p');
   inputRow.className = 'term__input';
-  inputRow.innerHTML = `${PS1}<input id="cmd" aria-label="명령어" autocomplete="off" spellcheck="false">`;
+  // 입력칸 뒤에 같은 글꼴의 흐린 글씨 층을 겹쳐, 친 글 뒤에 이어질 내용을 미리 보여 준다 (Tab · →로 채움)
+  inputRow.innerHTML = `${PS1}<span class="term__field"><input id="cmd" aria-label="명령어" autocomplete="off" spellcheck="false"><span class="term__ghost" id="cmd-ghost" aria-hidden="true"></span></span>`;
   const hint = document.createElement('p');
   hint.className = 'hint';
-  hint.textContent = 'help 명령 목록 · open <칸> 크게 보기 · Tab 자동 완성 · ↑↓ 이전 명령 · Esc 터미널로';
+  hint.textContent = 'help 명령 목록 · open <칸> 크게 보기 · Tab/→ 자동 완성 · ↑↓ 이전 명령 · Esc 터미널로';
   const termLine = (html, cls = '') => { const p = document.createElement('p'); if (cls) p.className = cls; p.innerHTML = html; inputRow.before(p); body.scrollTop = body.scrollHeight; return p; };
   const IDS = PANELS.map((p) => p.id);
   const nextEvent = () => { const now = Date.now(); return S.events.filter((e) => !e.all_day && Date.parse(e.start_at) > now)[0]; };
@@ -1049,18 +1050,43 @@
   const t0 = kst();
   body.innerHTML = `<p class="muted">Last login: ${WEEK[t0.getUTCDay()]} ${t0.getUTCMonth() + 1}/${t0.getUTCDate()} ${two(t0.getUTCHours())}:${two(t0.getUTCMinutes())} on hub</p>`;
   body.append(inputRow, hint);
-  const cmd = $('#cmd');
+  const cmd = $('#cmd'), ghost = $('#cmd-ghost');
+  /* 흐린 글씨 미리 보기: 1) 같은 글로 시작하는 가장 최근 명령 (줄 전체)  2) 명령어 이름, open 뒤엔 칸 이름, help 뒤엔 명령어 이름.
+     명령어는 설명서 순서(자주 쓰는 기본 명령이 앞)로 먼저 맞는 것 */
+  const CMD_NAMES = [...new Set([...ALL_DOCS.map((d) => d.name), ...Object.keys(CMDS)])];
+  let ghostText = '', ghostWord = false;
+  function suggest(v) {
+    if (!v.trim()) return ['', false];
+    for (let i = history.length - 1; i >= 0; i--) if (history[i].startsWith(v) && history[i] !== v) return [history[i].slice(v.length), false];
+    const parts = v.split(' '), last = parts.at(-1);
+    if (!last) return ['', false];
+    const pool = parts.length === 1 ? CMD_NAMES : parts.length === 2 && parts[0] === 'open' ? IDS : parts.length === 2 && parts[0] === 'help' ? ALL_DOCS.map((d) => d.name) : [];
+    const hit = pool.find((x) => x.startsWith(last) && x !== last);
+    return hit ? [hit.slice(last.length), true] : ['', false];
+  }
+  function drawGhost() {
+    const v = cmd.value, atEnd = cmd.selectionStart === v.length && cmd.selectionEnd === v.length;
+    [ghostText, ghostWord] = atEnd && document.activeElement === cmd ? suggest(v) : ['', false];
+    // 친 글은 자리만 차지하게 숨기고(같은 너비), 뒤에 이어질 부분만 흐리게 보인다
+    ghost.innerHTML = ghostText ? `<i>${esc(v)}</i>${esc(ghostText)}` : '';
+  }
+  const takeGhost = () => { cmd.value += ghostText + (ghostWord ? ' ' : ''); drawGhost(); };
   cmd.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { const v = cmd.value; if (v.trim()) { history.push(v); hAt = history.length; } cmd.value = ''; exec(v); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); if (hAt > 0) cmd.value = history[--hAt]; }
     else if (e.key === 'ArrowDown') { e.preventDefault(); hAt = Math.min(history.length, hAt + 1); cmd.value = history[hAt] || ''; }
+    else if (e.key === 'ArrowRight' && ghostText && cmd.selectionStart === cmd.value.length) { e.preventDefault(); takeGhost(); return; }
     else if (e.key === 'Tab') {
       e.preventDefault();
-      const parts = cmd.value.split(' '), last = parts.at(-1), pool = parts.length === 1 ? Object.keys(CMDS) : parts[0] === 'open' ? IDS : parts[0] === 'help' ? ALL_DOCS.map((d) => d.name) : [];
+      if (ghostText) { takeGhost(); return; }
+      // 미리 보기가 없을 때(맞는 게 여럿이라 고르기 어려울 때 등): 후보 목록을 찍는다
+      const parts = cmd.value.split(' '), last = parts.at(-1), pool = parts.length === 1 ? CMD_NAMES : parts[0] === 'open' ? IDS : parts[0] === 'help' ? ALL_DOCS.map((d) => d.name) : [];
       const hit = pool.filter((x) => x.startsWith(last));
       if (hit.length === 1) { parts[parts.length - 1] = hit[0]; cmd.value = parts.join(' ') + ' '; } else if (hit.length > 1) termLine(hit.join('  '), 'muted');
     }
+    setTimeout(drawGhost); // 키가 입력칸에 반영된 다음 다시 그린다
   });
+  for (const ev of ['input', 'click', 'focus', 'blur']) cmd.addEventListener(ev, () => setTimeout(drawGhost));
   body.addEventListener('click', () => { if (!getSelection().toString()) cmd.focus(); });
 
   /* ── 데이터 불러오기 ── */
