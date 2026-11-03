@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="brand/urigg-glass.css">
   <link rel="stylesheet" href="hub.css">
   <link rel="stylesheet" href="app.css">
+  <link rel="stylesheet" href="panels.css">
   <script src="js/store.js" defer></script>
   <script src="js/auth.js" defer></script>
   <script src="js/tools.js" defer></script>
@@ -81,9 +82,10 @@
         <div class="dday__main" id="dday-big"></div>
         <ul class="dset__list" id="dday-list"></ul>
         <form class="dset__form" id="dday-form">
-          <input type="text" id="dday-name-in" placeholder="이름" maxlength="60" required aria-label="D-day 이름">
+          <input type="text" id="dday-name-in" placeholder="이름" maxlength="60" required aria-label="D-day 이름" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="dday-sug">
           <input type="date" id="dday-date-in" required aria-label="날짜">
           <button class="u-btn" type="submit">추가</button>
+          <ul class="dsug" id="dday-sug" role="listbox" aria-label="캘린더 일정" hidden></ul>
         </form>
       </div>
       <div class="below__alerts" id="alerts-section">

@@ -89,7 +89,13 @@
     { id: 'vuln', title: 'Vuln', status: () => ({ text: curVuln()?.alias || '—' }), body: () => vulnBig() },
     { id: 'ctf', title: 'CTF', status: () => ({ text: S.ctf.length ? `${S.ctf.length}개 · 초보 ${S.ctf.filter((e) => e.beginner).length}` : '—' }),
       body: () => `<ul class="rows ctf">${S.ctf.map((e) => { const live = Date.parse(e.start) <= Date.now(); return `<li><a href="${esc(e.url)}">${esc(e.title)}${e.beginner ? '<b class="chip">초보</b>' : ''}</a><time>${live ? `진행 중 · ${Math.ceil((Date.parse(e.finish) - Date.now()) / 3_600_000)}시간 남음` : `${kst(Date.parse(e.start)).getUTCMonth() + 1}/${kst(Date.parse(e.start)).getUTCDate()} ${hm(e.start)} · ${ctfLen(e)}`}</time></li>`; }).join('') || '<li class="empty">45일 안에 예정된 CTF가 없어요.</li>'}</ul>` },
+    { id: 'tools', title: 'Tools', keep: true, status: () => ({ text: '인코딩 · 해시' }), body: () => toolsBig(), bind: (b) => bindTools(b) },
     { id: 'net', title: 'Network', status: () => { const m = lastMs(); return { text: m === undefined ? '—' : m === null ? '끊김' : `${m} ms`, warn: m === null }; }, body: () => netBig() },
+    { id: 'weather', title: 'Weather', status: () => (W.now ? { text: `${Math.round(W.now.temperature_2m)}° ${wDesc(W.now.weather_code)}` } : { text: '—' }), body: () => weatherBig(), bind: (b) => bindWeather(b), onOpen: () => loadWeather().then(() => open === 'weather' && refreshBig()) },
+    { id: 'todo', title: 'Todo', status: () => { const n = todos.filter((t) => !t.done).length; return { text: n ? `${n}개 남음` : '—' }; }, body: () => todoBig(), bind: (b) => bindTodo(b) },
+    { id: 'memo', title: 'Memo', keep: true, status: () => ({ text: memos.length ? `${memos.length}개` : '—' }), body: () => memoBig(), bind: (b) => bindMemo(b) },
+    { id: 'activity', title: 'Activity', status: () => ({ text: `연속 ${streakDays()}일` }), body: () => activityBig(), onOpen: () => loadCommits().then(() => open === 'activity' && refreshBig()) },
+    { id: 'system', title: 'System', keep: true, status: () => (SYS ? { text: `CPU ${Math.round(SYS.cpu)}%` } : { text: '—' }), body: () => systemBig(), onOpen: () => sysLoop(true), onClose: () => sysLoop(false) },
     // 위: 지금 쓰는 이 허브(버전·업데이트), 아래: 다른 프로그램 내려받기. 허브에서 허브를 받는 건 이상하니까
     { id: 'programs', title: 'Programs', status: () => (hubLatest && appVer && hubLatest !== appVer ? { text: '새 버전', warn: true } : { text: appVer ? `v${appVer}` : '—' }), body: () => progBig() },
     // 명령어 설명서. 타이머가 돌면 상태 자리에 가장 먼저 끝나는 것의 남은 시간
@@ -248,6 +254,9 @@
     });
     document.activeElement?.blur?.(); // 터미널 입력칸이 ← → 키를 가져가지 않게
     stage.append(el); stage.classList.add('is-summoned'); btn.classList.add('is-away'); open = id;
+    // 입력칸이 있는 칸: bind는 .big__body에 한 번만 이벤트를 단다 (안쪽을 다시 그려도 남는다). onOpen은 데이터 받기·주기적 갱신 시작
+    p.bind?.(el.querySelector('.big__body'));
+    p.onOpen?.();
     if (!reduced) {
       flying = true;
       el.animate(flyFrames(btn.getBoundingClientRect(), el.getBoundingClientRect()), { duration: FLY, easing: 'cubic-bezier(0.2, 0.9, 0.25, 1)' }).onfinish = () => { flying = false; };
@@ -257,6 +266,7 @@
   function back(instant) {
     if (!open) return;
     const el = stage.querySelector('.big'), btn = dock.querySelector(`[data-id="${open}"]`);
+    PANELS.find((x) => x.id === open)?.onClose?.();
     open = null; stage.classList.remove('is-summoned');
     const done = () => { el.remove(); btn.classList.remove('is-away'); cmd.focus(); };
     if (reduced || instant) { flying = false; return done(); }
@@ -291,6 +301,7 @@
     const m = mainDd();
     $('#dday-main').textContent = m ? ddLabel(daysTo(m.target)) : '—';
     $('#dday-name').textContent = m ? `${m.title} · ${md(m.target)}` : (S.loggedIn ? 'D-day 없음' : '');
+    $('#dday-name').title = $('#dday-name').textContent; // 두 줄을 넘어 잘리면 마우스를 올려 전체 보기
     $('#dday-big').innerHTML = m
       ? `<p class="dday__big">${ddLabel(daysTo(m.target))}</p><div><p class="dday__name">${esc(m.title)}</p><p class="dday__date">${md(m.target)}${m.is_main ? ' · 메인' : ''}</p></div>`
       : `<p class="dday__date">${S.loggedIn ? 'D-day가 없어요. 아래에서 추가하세요.' : '로그인하면 D-day가 보여요.'}</p>`;
@@ -309,6 +320,40 @@
   });
   async function addDday(title, target) { await Auth.rest('ddays', { method: 'POST', body: JSON.stringify({ title, target, is_main: !S.ddays.length }) }); await loadDdays(); }
   $('#dday-date-in').value = ymd(Date.now() + 7 * DAY);
+
+  /* D-day 이름 자동완성: 캘린더(events 표)의 오늘 이후 일정에서 찾아, 고르면 이름과 날짜를 채운다 (웹사이트 dday.js와 같은 방식) */
+  const ddName = $('#dday-name-in'), ddDate = $('#dday-date-in'), sug = $('#dday-sug');
+  let hits = [], pick = -1, sugTimer = 0, ask = 0;
+  const closeSug = () => { sug.hidden = true; sug.innerHTML = ''; hits = []; pick = -1; ddName.setAttribute('aria-expanded', 'false'); };
+  const drawSug = () => {
+    sug.innerHTML = hits.length
+      ? hits.map((h, i) => `<li role="option" aria-selected="${i === pick}" data-i="${i}"><b>${esc(h.emoji || '·')}</b><span>${esc(h.title)}</span><time>${md(h.date)}</time></li>`).join('')
+      : '<li class="is-empty" role="option" aria-disabled="true">캘린더에 맞는 일정이 없어요</li>';
+    sug.hidden = false; ddName.setAttribute('aria-expanded', 'true');
+  };
+  const choose = (i) => { const h = hits[i]; if (!h) return; ddName.value = h.title.slice(0, 60); ddDate.value = h.date; closeSug(); };
+  async function suggest() {
+    const q = ddName.value.trim().replace(/[*,()%\\]/g, ''), n = ++ask; // 검색 문법 글자는 빼고
+    if (!q || !S.loggedIn) return closeSug();
+    try {
+      const from = encodeURIComponent(`${ymd()}T00:00:00+09:00`);
+      const rows = await Auth.rest(`events?select=title,emoji,start_at&title=ilike.*${encodeURIComponent(q)}*&start_at=gte.${from}&order=start_at.asc&limit=30`);
+      if (n !== ask) return; // 그새 더 입력했으면 버린다
+      const seen = new Set(); // 같은 이름이 반복되면 가장 가까운 날짜 하나만
+      hits = (rows || []).filter((r) => !seen.has(r.title) && seen.add(r.title)).slice(0, 8).map((r) => ({ ...r, date: ymd(Date.parse(r.start_at)) }));
+      pick = -1; drawSug();
+    } catch { closeSug(); }
+  }
+  ddName.addEventListener('input', () => { clearTimeout(sugTimer); sugTimer = setTimeout(suggest, 220); });
+  ddName.addEventListener('keydown', (e) => {
+    if (sug.hidden || !hits.length) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); pick = (pick + (e.key === 'ArrowDown' ? 1 : -1) + hits.length) % hits.length; drawSug(); }
+    else if (e.key === 'Enter' && pick >= 0) { e.preventDefault(); choose(pick); }
+    else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeSug(); }
+  });
+  // 클릭이 입력칸의 blur보다 먼저 처리되도록 mousedown에서 고른다
+  sug.addEventListener('mousedown', (e) => { const li = e.target.closest('[data-i]'); if (li) { e.preventDefault(); choose(+li.dataset.i); } });
+  ddName.addEventListener('blur', () => setTimeout(closeSug, 120));
   $('#dday-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = $('#dday-name-in').value.trim(), date = $('#dday-date-in').value;
@@ -423,6 +468,249 @@
   const opts = (rest, names) => { const on = {}; let r = rest; for (;;) { const m = r.match(/^(-[a-z]+)(?:\s+|$)/i); if (!m || !names.includes(m[1])) break; on[m[1]] = true; r = r.slice(m[0].length); } return [on, r]; };
   const usage = (name) => `<span class="warn">사용법:</span> ${docOf(name).usage.map(esc).join('  ·  ')}  <span class="muted">(help ${name})</span>`;
   const warnLine = (s) => `<span class="warn">${s}</span>`;
+
+  /* ── 칸: Tools (글을 넣으면 여러 변환이 한꺼번에, 옆에 진법 · 서브넷 · 권한) ── */
+  let toolText = '', toolCopies = [];
+  const toolSide = { num: '', cidr: '', chmod: '' };
+  const tkv = (rows) => `<dl class="tk__kv">${rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>`;
+  const tbad = (s) => `<p class="tk__bad">${s}</p>`;
+  function toolsBig() {
+    const mini = (k, label, ph) => `<label class="tk__mini"><span>${label}</span><input data-tool="${k}" value="${esc(toolSide[k])}" placeholder="${ph}" spellcheck="false" autocomplete="off"></label><div class="tk__res" id="tk-${k}"></div>`;
+    return `<div class="tk">
+      <section class="tk__main">
+        <textarea class="tk__in" data-tool="text" placeholder="여기에 글을 넣으면 아래에 바로 바뀌어요 · Base64 · URL · Hex · ROT13 · HTML · 해시 · 풀기" spellcheck="false">${esc(toolText)}</textarea>
+        <div class="tk__out" id="tk-out"></div>
+      </section>
+      <aside class="tk__side">${mini('num', '진법 바꾸기', '255 · 0xff · 0b1010')}${mini('cidr', '서브넷', '192.168.0.0/24')}${mini('chmod', '리눅스 권한', '755 · rwxr-x---')}</aside>
+    </div>`;
+  }
+  async function renderToolText(b) {
+    const s = toolText, out = b.querySelector('#tk-out');
+    if (!out) return;
+    if (!s) { out.innerHTML = '<p class="empty">위 칸에 글을 넣어 보세요. 풀 수 있는 것(Base64 · Hex · URL · HTML · JWT)은 풀린 결과도 같이 나와요.</p>'; return; }
+    const rows = [], add = (k, v) => { if (v != null && v !== '') rows.push([k, v]); };
+    const bu = Tools.b64bytes(s), bt = bu && Tools.text(bu); if (bt != null && bt && bt !== s) add('Base64 풀기', bt);
+    if (/%[0-9a-f]{2}/i.test(s)) { try { add('URL 풀기', decodeURIComponent(s)); } catch {} }
+    const hx = Tools.hexbytes(s), ht = hx && Tools.text(hx); if (ht) add('Hex 풀기', ht);
+    if (/&(#x?[0-9a-f]+|[a-z]+);/i.test(s)) add('HTML 풀기', Tools.htmlDecode(s));
+    const j = Tools.jwt(s); if (j) add('JWT 내용', JSON.stringify(j.payload));
+    add('Base64', Tools.b64enc(s)); add('URL 인코딩', encodeURIComponent(s)); add('Hex', Tools.hexOf(Tools.bytes(s)).match(/../g).join(' '));
+    add('ROT13', Tools.rot(s, 13)); add('HTML 엔티티', Tools.htmlEncode(s));
+    const h = await Tools.hashes(s);
+    if (s !== toolText) return; // 그새 더 입력했으면 버린다
+    for (const [k, v] of Object.entries(h)) add(k, v);
+    toolCopies = rows.map((r) => r[1]);
+    out.innerHTML = rows.map(([k, v], i) => `<div class="tk__row${k.endsWith('풀기') || k === 'JWT 내용' ? ' is-decoded' : ''}"><span class="tk__k">${k}</span><code>${esc(v)}</code><button type="button" class="tk__copy" data-copy="${i}">복사</button></div>`).join('');
+  }
+  function renderToolSide(b, k) {
+    const v = toolSide[k].trim(), el = b.querySelector(`#tk-${k}`);
+    if (!el) return;
+    if (!v) { el.innerHTML = ''; return; }
+    if (k === 'num') { const n = Tools.numBases(v); el.innerHTML = n ? tkv([['10진', n.dec], ['16진', n.hex], ['2진', n.bin], ['8진', n.oct]]) : tbad('정수를 넣어 주세요'); }
+    if (k === 'cidr') { const [a, m] = v.split(/\s+/), r = Tools.cidr(a, m); el.innerHTML = !r ? tbad('192.168.0.0/24 또는 IP와 마스크') : r.error ? tbad(r.error) : tkv([['네트워크', r.net], ['브로드캐스트', r.bc], ['범위', `${r.first} ~ ${r.last}`], ['개수', r.hosts.toLocaleString()], ['마스크', r.mask], ['종류', r.kind]]); }
+    if (k === 'chmod') { const r = Tools.chmod(v); el.innerHTML = r ? tkv([['숫자', r.num], ['기호', r.sym], ...r.who.map((w) => [w.who, [w.r && '읽기', w.w && '쓰기', w.x && '실행', w.special].filter(Boolean).join(' · ') || '없음']), ...(r.mean ? [['뜻', r.mean]] : [])]) : tbad('755 또는 rwxr-x---'); }
+  }
+  function bindTools(b) {
+    let t = 0;
+    b.addEventListener('input', (e) => {
+      const k = e.target.dataset.tool; if (!k) return;
+      if (k === 'text') { toolText = e.target.value; clearTimeout(t); t = setTimeout(() => renderToolText(b), 120); }
+      else { toolSide[k] = e.target.value; renderToolSide(b, k); }
+    });
+    b.addEventListener('click', (e) => {
+      const c = e.target.closest('[data-copy]'); if (!c) return;
+      navigator.clipboard?.writeText(toolCopies[+c.dataset.copy]).then(() => { c.textContent = '복사됨'; setTimeout(() => { c.textContent = '복사'; }, 1200); }).catch(() => {});
+    });
+    renderToolText(b); Object.keys(toolSide).forEach((k) => renderToolSide(b, k));
+    setTimeout(() => b.querySelector('.tk__in')?.focus(), FLY);
+  }
+
+  /* ── 칸: Weather (Open-Meteo, 키 없음. 위치는 IP로 찾은 도시, 직접 바꿀 수 있음) ── */
+  const W = { now: null, hourly: null, daily: null, air: null, at: 0, place: '' };
+  const WCODE = { 0: '맑음', 1: '대체로 맑음', 2: '구름 조금', 3: '흐림', 45: '안개', 48: '안개', 51: '이슬비', 53: '이슬비', 55: '이슬비', 56: '어는 이슬비', 57: '어는 이슬비', 61: '비', 63: '비', 65: '강한 비', 66: '어는 비', 67: '어는 비', 71: '눈', 73: '눈', 75: '많은 눈', 77: '싸락눈', 80: '소나기', 81: '소나기', 82: '강한 소나기', 85: '눈보라', 86: '눈보라', 95: '뇌우', 96: '우박 뇌우', 99: '우박 뇌우' };
+  const wDesc = (c) => WCODE[c] ?? '—';
+  const where = () => settings.weather || (S.net?.lat ? { name: S.net.city || '지금 위치', lat: +S.net.lat, lon: +S.net.lon, auto: true } : { name: '서울', lat: 37.5665, lon: 126.978, auto: true });
+  async function loadWeather(force) {
+    if (!force && Date.now() - W.at < 15 * 60_000) return;
+    const p = where(), q = `latitude=${p.lat}&longitude=${p.lon}&timezone=Asia%2FSeoul`;
+    const [f, a] = await Promise.all([
+      Store.local(`https://api.open-meteo.com/v1/forecast?${q}&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m&hourly=temperature_2m,precipitation_probability,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code,sunrise,sunset&forecast_days=4`),
+      Store.local(`https://air-quality-api.open-meteo.com/v1/air-quality?${q}&current=pm10,pm2_5`),
+    ]);
+    if (f?.current) Object.assign(W, { now: f.current, hourly: f.hourly, daily: f.daily, at: Date.now(), place: p.name, auto: !!p.auto });
+    if (a?.current) W.air = a.current;
+    drawDock();
+  }
+  // 한국 환경부 기준 등급
+  const airGrade = (v, cut) => (v == null ? ['—', ''] : v <= cut[0] ? ['좋음', 'is-good'] : v <= cut[1] ? ['보통', ''] : v <= cut[2] ? ['나쁨', 'is-bad'] : ['매우 나쁨', 'is-bad']);
+  function weatherBig() {
+    const loc = `<form class="wx__loc" data-form="loc"><input name="q" placeholder="도시 이름 (예: 부산, Tokyo)" autocomplete="off"><button class="u-btn-ghost" type="submit">위치 바꾸기</button>${settings.weather ? '<button type="button" class="u-btn-ghost" data-act="loc-auto">IP 위치로</button>' : ''}</form>`;
+    if (!W.now) return `<p class="empty">날씨를 불러오는 중…</p>${loc}`;
+    const n = W.now, d = W.daily, h = W.hourly, nowH = n.time.slice(0, 13);
+    const i0 = Math.max(0, h.time.findIndex((t) => t.slice(0, 13) >= nowH)), hours = h.time.slice(i0, i0 + 12).map((t, k) => ({ t, temp: h.temperature_2m[i0 + k], rain: h.precipitation_probability[i0 + k] }));
+    const tMin = Math.min(...hours.map((x) => x.temp)), tMax = Math.max(...hours.map((x) => x.temp));
+    const [p10, c10] = airGrade(W.air?.pm10, [30, 80, 150]), [p25, c25] = airGrade(W.air?.pm2_5, [15, 35, 75]);
+    const dayName = (iso, k) => (k === 0 ? '오늘' : k === 1 ? '내일' : `${WEEK[new Date(`${iso}T12:00:00+09:00`).getUTCDay()]}요일`);
+    return `<div class="wx">
+      <section class="wx__now">
+        <p class="wx__place">${esc(W.place)} <span>${W.auto ? 'IP로 찾은 위치' : '직접 정한 위치'}</span></p>
+        <p class="wx__temp">${Math.round(n.temperature_2m)}°</p>
+        <p class="wx__desc">${wDesc(n.weather_code)} · 최고 ${Math.round(d.temperature_2m_max[0])}° 최저 ${Math.round(d.temperature_2m_min[0])}°</p>
+        <dl class="wx__facts">
+          <div><dt>체감</dt><dd>${Math.round(n.apparent_temperature)}°</dd></div>
+          <div><dt>습도</dt><dd>${n.relative_humidity_2m}%</dd></div>
+          <div><dt>바람</dt><dd>${(n.wind_speed_10m / 3.6).toFixed(1)} m/s</dd></div>
+          <div><dt>비 올 확률</dt><dd>${d.precipitation_probability_max[0] ?? '—'}%</dd></div>
+          <div><dt>미세먼지</dt><dd class="${c10}">${p10}${W.air ? ` · ${Math.round(W.air.pm10)}㎍` : ''}</dd></div>
+          <div><dt>초미세먼지</dt><dd class="${c25}">${p25}${W.air ? ` · ${Math.round(W.air.pm2_5)}㎍` : ''}</dd></div>
+          <div><dt>해</dt><dd>${d.sunrise[0].slice(11)} 뜸 · ${d.sunset[0].slice(11)} 짐</dd></div>
+        </dl>
+      </section>
+      <section class="wx__side">
+        <h3>12시간</h3>
+        <div class="wx__hours">${hours.map((x) => `<div><time>${+x.t.slice(11, 13)}시</time><b style="--y:${tMax === tMin ? 50 : ((x.temp - tMin) / (tMax - tMin)) * 100}%">${Math.round(x.temp)}°</b><i style="--p:${x.rain ?? 0}%"></i><span>${x.rain ?? 0}%</span></div>`).join('')}</div>
+        <h3>며칠</h3>
+        <ul class="wx__days">${d.time.map((t, k) => `<li><span>${dayName(t, k)}</span><span>${wDesc(d.weather_code[k])}</span><span>${Math.round(d.temperature_2m_min[k])}° / ${Math.round(d.temperature_2m_max[k])}°</span><span>비 ${d.precipitation_probability_max[k] ?? 0}%</span></li>`).join('')}</ul>
+        ${loc}
+        <p class="wx__src">Open-Meteo · 15분마다 새로</p>
+      </section>
+    </div>`;
+  }
+  function bindWeather(b) {
+    b.addEventListener('submit', async (e) => {
+      const f = e.target.closest('[data-form="loc"]'); if (!f) return;
+      e.preventDefault();
+      const q = f.q.value.trim(); if (!q) return;
+      const r = await Store.local(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=1&language=ko`);
+      const g = r?.results?.[0];
+      if (!g) { f.q.value = ''; f.q.placeholder = `'${q}'을(를) 못 찾았어요`; return; }
+      settings.weather = { name: g.name, lat: g.latitude, lon: g.longitude }; saveSettings();
+      await loadWeather(true); refreshBig();
+    });
+    b.addEventListener('click', async (e) => { if (!e.target.closest('[data-act="loc-auto"]')) return; delete settings.weather; saveSettings(); await loadWeather(true); refreshBig(); });
+  }
+
+  /* ── 칸: Todo (오늘 캘린더 일정 + 할 일, 눌러서 체크) ── */
+  function todoBig() {
+    const today = ymd(), tmr = ymd(Date.now() + DAY);
+    const evRow = (e) => { const past = !e.all_day && Date.parse(e.start_at) < Date.now(); return `<li class="${past ? 'is-past' : ''}"><time>${e.all_day ? '종일' : hm(e.start_at)}</time><span>${esc(e.emoji ? `${e.emoji} ` : '')}${esc(e.title)}</span></li>`; };
+    const evToday = S.events.filter((e) => ymd(Date.parse(e.start_at)) === today), evTmr = S.events.filter((e) => ymd(Date.parse(e.start_at)) === tmr);
+    const remain = todos.filter((t) => !t.done).length;
+    return `<div class="td">
+      <section>
+        <h3>오늘 일정 <span>${md(today)} · 캘린더</span></h3>
+        <ul class="td__ev">${!S.loggedIn ? '<li class="empty">로그인하면 보여요</li>' : evToday.map(evRow).join('') || '<li class="empty">오늘 일정이 없어요</li>'}</ul>
+        ${evTmr.length ? `<h3>내일 <span>${md(tmr)}</span></h3><ul class="td__ev">${evTmr.map(evRow).join('')}</ul>` : ''}
+      </section>
+      <section>
+        <h3>할 일 <span>${todos.length ? (remain ? `${remain}개 남음` : '다 했어요') : ''}</span></h3>
+        <form class="td__add" data-form="todo"><input name="t" maxlength="200" placeholder="할 일 추가 (Enter)" autocomplete="off"><button class="u-btn" type="submit">추가</button></form>
+        <ul class="td__list">${todos.map((t, i) => `<li class="${t.done ? 'is-done' : ''}"><button type="button" class="td__check" data-todo="toggle" data-i="${i}" aria-pressed="${t.done}" aria-label="끝냄 표시">${t.done ? '✓' : ''}</button><span>${esc(t.text)}</span><button type="button" class="td__del" data-todo="del" data-i="${i}" aria-label="지우기">×</button></li>`).join('') || '<li class="empty">할 일이 없어요</li>'}</ul>
+        ${todos.some((t) => t.done) ? '<button type="button" class="u-btn-ghost td__clear" data-todo="clear">끝낸 것 지우기</button>' : ''}
+      </section>
+    </div>`;
+  }
+  function bindTodo(b) {
+    b.addEventListener('submit', (e) => {
+      const f = e.target.closest('[data-form="todo"]'); if (!f) return;
+      e.preventDefault();
+      const v = f.t.value.trim(); if (!v) return;
+      todos.push({ text: v, done: false, t: Date.now() }); save(TODO_KEY, todos); refreshBig(); drawDock();
+      b.querySelector('[data-form="todo"] input')?.focus();
+    });
+    b.addEventListener('click', (e) => {
+      const x = e.target.closest('[data-todo]'); if (!x) return;
+      const i = +x.dataset.i, k = x.dataset.todo;
+      if (k === 'toggle') todos[i].done = !todos[i].done; else if (k === 'del') todos.splice(i, 1); else todos = todos.filter((t) => !t.done);
+      save(TODO_KEY, todos); refreshBig(); drawDock();
+    });
+  }
+
+  /* ── 칸: Memo (카드로, 검색) ── */
+  let memoQ = '';
+  function memoCards() {
+    const q = memoQ.trim().toLowerCase(), list = memos.map((m, i) => [m, i]).filter(([m]) => !q || m.text.toLowerCase().includes(q));
+    return list.map(([m, i]) => `<article class="mm__card"><p>${esc(m.text)}</p><footer><time>${md(ymd(m.t))} ${hmOf(m.t)}</time><button type="button" data-memo="del" data-i="${i}" aria-label="지우기">×</button></footer></article>`).join('') || `<p class="empty">${q ? '찾은 메모가 없어요' : '메모가 없어요. 위에 적어 보세요.'}</p>`;
+  }
+  function memoBig() {
+    return `<div class="mm">
+      <form class="mm__add" data-form="memo"><textarea name="m" rows="2" maxlength="2000" placeholder="메모 (Ctrl+Enter로 저장)"></textarea><button class="u-btn" type="submit">저장</button></form>
+      <input class="mm__search" data-memo="q" value="${esc(memoQ)}" placeholder="메모 검색" autocomplete="off">
+      <div class="mm__grid" id="mm-grid">${memoCards()}</div>
+    </div>`;
+  }
+  function bindMemo(b) {
+    const grid = () => { b.querySelector('#mm-grid').innerHTML = memoCards(); drawDock(); };
+    const add = (f) => { const v = f.m.value.trim(); if (!v) return; memos.unshift({ text: v, t: Date.now() }); save(MEMO_KEY, memos); f.m.value = ''; grid(); };
+    b.addEventListener('submit', (e) => { const f = e.target.closest('[data-form="memo"]'); if (!f) return; e.preventDefault(); add(f); });
+    b.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.ctrlKey && e.target.name === 'm') { e.preventDefault(); add(e.target.form); } });
+    b.addEventListener('input', (e) => { if (e.target.dataset.memo === 'q') { memoQ = e.target.value; grid(); } });
+    b.addEventListener('click', (e) => { const x = e.target.closest('[data-memo="del"]'); if (!x) return; memos.splice(+x.dataset.i, 1); save(MEMO_KEY, memos); grid(); });
+  }
+
+  /* ── 칸: Activity (잔디 크게 + 최근 커밋 + 저장소별) ──
+     GitHub 공개 이벤트에는 2025년부터 커밋 메시지가 빠져서, 최근에 푸시한 공개 저장소 몇 개의 커밋 목록을 직접 읽는다 (10분에 한 번) */
+  let commits = [], commitsAt = 0;
+  async function loadCommits() {
+    if (Date.now() - commitsAt < 10 * 60_000) return;
+    commitsAt = Date.now();
+    const ev = await Store.local('https://api.github.com/users/yde5536/events/public?per_page=100');
+    if (!Array.isArray(ev)) return;
+    const repos = [...new Set(ev.filter((e) => e.type === 'PushEvent').map((e) => e.repo.name))].slice(0, 5);
+    const lists = await Promise.all(repos.map((r) => Store.local(`https://api.github.com/repos/${r}/commits?per_page=20`).then((c) => (Array.isArray(c) ? c : [])
+      .filter((x) => x.author?.type !== 'Bot' && !/\[bot\]/i.test(x.commit?.author?.name || '')) // 매시간 도는 캘린더 자동 커밋 같은 것은 뺀다
+      .map((x) => ({ repo: r.split('/')[1], msg: x.commit.message.split('\n')[0], date: x.commit.author?.date || x.commit.committer?.date, url: x.html_url })))));
+    commits = lists.flat().sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
+  }
+  function streakDays() { const days = S.activity || {}; let s = 0; for (let d = days[ymd()] ? 0 : 1; days[ymd(Date.now() - d * DAY)]; d++) s++; return s; }
+  function activityBig() {
+    const days = S.activity || {}, todayDow = kst().getUTCDay(), start = Date.now() - (todayDow + 52 * 7) * DAY;
+    let total = 0, week = 0, month = 0, active = 0, best = ['', 0]; const cells = [], mon = ymd().slice(0, 7);
+    for (let i = 0; i <= 52 * 7 + todayDow; i++) {
+      const key = ymd(start + i * DAY), n = days[key] || 0;
+      total += n; if (i > 52 * 7 - 1) week += n; if (key.startsWith(mon)) month += n; if (n) active++; if (n > best[1]) best = [key, n];
+      cells.push(`<i class="${n === 0 ? '' : n === 1 ? 'l1' : n <= 3 ? 'l2' : 'l3'}" title="${key} · ${n}"></i>`);
+    }
+    const byRepo = Object.entries(commits.reduce((m, c) => ((m[c.repo] = (m[c.repo] || 0) + 1), m), {})).sort((a, b) => b[1] - a[1]), top = byRepo[0]?.[1] || 1;
+    const when = (iso) => (daysAgo(iso) <= 0 ? hm(iso) : ago(iso));
+    return `<div class="ac">
+      <section class="ac__grass"><div class="ac__grid">${cells.join('')}</div>
+        <dl class="ac__stats"><div><dt>연속</dt><dd>${streakDays()}일</dd></div><div><dt>이번 주</dt><dd>${week}</dd></div><div><dt>이번 달</dt><dd>${month}</dd></div><div><dt>1년</dt><dd>${total.toLocaleString()}</dd></div><div><dt>커밋한 날</dt><dd>${active}일</dd></div><div><dt>가장 많은 날</dt><dd>${best[1] ? `${md(best[0])} · ${best[1]}` : '—'}</dd></div></dl>
+      </section>
+      <section class="ac__cols">
+        <div><h3>최근 커밋 <span>공개 저장소</span></h3><ol class="rows ac__commits">${commits.slice(0, 14).map((c) => `<li><span>${esc(c.repo)}</span><a href="${esc(c.url)}">${esc(c.msg)}</a><time>${when(c.date)}</time></li>`).join('') || `<li class="empty">${commitsAt ? '불러오지 못했어요' : '불러오는 중…'}</li>`}</ol></div>
+        <div><h3>저장소별 <span>최근 커밋 기준</span></h3><ul class="ac__repos">${byRepo.map(([r, n]) => `<li><span>${esc(r)}</span><span class="meter"><i style="width:${(n / top) * 100}%"></i></span><b>${n}</b></li>`).join('')}</ul></div>
+      </section>
+    </div>`;
+  }
+
+  /* ── 칸: System (Rust system_info: CPU · 메모리 · 배터리 · 디스크 · 많이 쓰는 프로그램) ── */
+  let SYS = null, sysTimer = 0;
+  async function sysPoll() { try { SYS = await invoke('system_info'); } catch { SYS = null; } drawDock(); if (open === 'system') refreshBig(); }
+  function sysLoop(on) { clearInterval(sysTimer); if (on) { sysPoll(); sysTimer = setInterval(sysPoll, 2000); } }
+  if (T) setInterval(() => { if (open !== 'system' && !document.hidden) sysPoll(); }, 60_000); // 사이드바 상태용, 1분에 한 번
+  const gb = (b) => `${(b / 1024 ** 3).toFixed(1)} GB`;
+  const meter = (pct, warn) => `<span class="meter${warn ? ' is-warn' : ''}"><i style="width:${Math.max(0, Math.min(100, pct)).toFixed(1)}%"></i></span>`;
+  function systemBig() {
+    if (!T) return '<p class="empty">PC 정보는 앱에서만 보여요 (브라우저 미리보기).</p>';
+    if (!SYS) return '<p class="empty">불러오는 중…</p>';
+    const s = SYS, memPct = (s.mem_used / s.mem_total) * 100, up = s.uptime, bat = s.battery;
+    const upT = up >= 86400 ? `${Math.floor(up / 86400)}일 ${Math.floor((up % 86400) / 3600)}시간` : `${Math.floor(up / 3600)}시간 ${Math.floor((up % 3600) / 60)}분`;
+    return `<div class="sy">
+      <section class="sy__big">
+        <div class="sy__stat"><p class="sy__k">CPU</p><p class="sy__v">${Math.round(s.cpu)}<small>%</small></p>${meter(s.cpu, s.cpu > 85)}<div class="sy__cores">${s.per_core.map((c) => `<i style="--h:${Math.max(4, c)}%" title="${Math.round(c)}%"></i>`).join('')}</div></div>
+        <div class="sy__stat"><p class="sy__k">메모리</p><p class="sy__v">${Math.round(memPct)}<small>%</small></p>${meter(memPct, memPct > 90)}<p class="sy__sub">${gb(s.mem_used)} / ${gb(s.mem_total)}</p></div>
+        <div class="sy__stat"><p class="sy__k">배터리</p>${bat && bat.percent != null ? `<p class="sy__v">${bat.percent}<small>%</small></p>${meter(bat.percent, bat.percent <= 20 && !bat.plugged)}<p class="sy__sub">${bat.charging ? '충전 중' : bat.plugged ? '전원 연결됨' : bat.minutes_left != null ? `약 ${fmtMin(bat.minutes_left)} 남음` : '배터리 사용 중'}</p>` : '<p class="sy__v">—</p><p class="sy__sub">배터리 없음</p>'}</div>
+      </section>
+      <section class="sy__cols">
+        <div>
+          <h3>디스크</h3><ul class="sy__disks">${s.disks.map((d) => { const u = ((d.total - d.free) / d.total) * 100; return `<li><span>${esc(d.mount)}</span>${meter(u, u > 90)}<span>${gb(d.free)} 남음 / ${gb(d.total)}</span></li>`; }).join('')}</ul>
+          <h3>이 PC</h3><dl class="sy__facts"><div><dt>이름</dt><dd>${esc(s.host)}</dd></div><div><dt>Windows</dt><dd>${esc(s.os)}</dd></div><div><dt>CPU</dt><dd>${esc(s.cpu_name)} · ${s.cores}스레드</dd></div><div><dt>켜진 지</dt><dd>${upT}</dd></div></dl>
+        </div>
+        <div><h3>메모리를 많이 쓰는 프로그램</h3><ol class="sy__top">${s.top.map((p) => `<li><span>${esc(p.name.replace(/\.exe$/i, ''))}</span><span>${gb(p.mem)}</span></li>`).join('')}</ol><p class="sy__note">2초마다 새로 · 같은 이름은 합쳐서</p></div>
+      </section>
+    </div>`;
+  }
 
   /* ── 터미널 ── */
   const body = $('#term-body');
@@ -755,8 +1043,9 @@
     try { S.events = (await Auth.rest(`events?select=title,emoji,start_at,all_day&start_at=gte.${encodeURIComponent(from)}&start_at=lt.${encodeURIComponent(to)}&order=start_at.asc&limit=50`)) || []; } catch { S.events = []; }
     try { S.ddays = (await Auth.rest('ddays?select=id,title,target,is_main&order=target.asc')) || []; } catch { S.ddays = []; }
   }
-  function drawAll() { drawDock(); drawTimeline(); drawDdays(); buildAlerts(); drawGrass(); drawKeyword(); if (open) refreshBig(); }
-  async function refreshAll() { await Promise.all([loadPublic(), loadPrivate()]); drawAll(); }
+  // keep: 입력 중인 글을 지우지 않도록 데이터가 바뀌어도 저절로 다시 그리지 않는 칸 (Tools)
+  function drawAll() { drawDock(); drawTimeline(); drawDdays(); buildAlerts(); drawGrass(); drawKeyword(); if (open && !PANELS.find((x) => x.id === open)?.keep) refreshBig(); }
+  async function refreshAll() { await Promise.all([loadPublic().then(() => loadWeather(true)), loadPrivate()]); drawAll(); } // 날씨는 IP 위치(S.net)를 받은 다음
   Promise.all([Store.local('data/keywords.json'), Store.local('data/vulns.json')]).then(([k, v]) => { S.keywords = k || []; S.vulns = v || []; drawKeyword(); drawDock(); });
 
   /* ── 잠금 화면 ── */

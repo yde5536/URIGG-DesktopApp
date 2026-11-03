@@ -147,3 +147,17 @@ html { scrollbar-width: thin; scrollbar-color: rgb(255 255 255 / 0.22) transpare
 .pg__list p { display: grid; gap: 2px; min-width: 0; }
 .pg__list b { font-size: var(--u-step-body); font-weight: 600; }
 .pg__list span { color: var(--u-muted); font-size: var(--u-step-small); }
+
+/* 왼쪽 위 D-day: 이름이 길어도 D-1이 두 줄로 깨지지 않게. 이름은 두 줄까지, 넘치면 … */
+.side__dday b { flex: none; white-space: nowrap; }
+.side__dday span { min-width: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; line-height: 1.4; }
+
+/* D-day 이름 자동완성: 캘린더 일정에서 이름과 날짜를 가져온다 */
+.dset__form { position: relative; }
+.dsug { position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 6; display: grid; gap: 2px; padding: 6px; border-radius: 12px; background: rgb(24 26 34 / 0.92); -webkit-backdrop-filter: blur(22px); backdrop-filter: blur(22px); box-shadow: var(--u-glass-edge), 0 18px 40px -16px rgb(0 0 0 / 0.75); } /* taste-skill-ignore: 떠 있는 목록 */
+.dsug[hidden] { display: none; }
+.dsug li { display: grid; grid-template-columns: 1.6em minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 8px; font-size: var(--u-step-small); cursor: pointer; }
+.dsug li span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dsug li time { color: var(--u-muted); }
+.dsug li:hover, .dsug li[aria-selected="true"] { background: rgb(255 255 255 / 0.08); }
+.dsug li.is-empty { display: block; color: var(--u-muted); cursor: default; }

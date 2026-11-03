@@ -1,6 +1,6 @@
 [package]
 name = "urigg-hub"
-version = "0.1.7"
+version = "0.1.8"
 description = "Security.log HUB — URIGG desktop app"
 edition = "2021"
 
@@ -21,6 +21,10 @@ tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+sysinfo = { version = "0.33", default-features = false, features = ["system", "disk"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_System_Power"] }
 
 [profile.release]
 codegen-units = 1

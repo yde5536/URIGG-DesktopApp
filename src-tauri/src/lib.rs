@@ -6,6 +6,8 @@ use tauri::{
     AppHandle, Manager,
 };
 
+mod system;
+
 fn show_main(app: &AppHandle) {
     if let Some(w) = app.get_webview_window("main") {
         let _ = w.unminimize();
@@ -73,7 +75,8 @@ pub fn run() {
                 .build(app)?;
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![check_update])
+        .manage(system::SysState::default())
+        .invoke_handler(tauri::generate_handler![check_update, system::system_info])
         .run(tauri::generate_context!())
         .expect("URIGG HUB를 시작하지 못했어요");
 }
