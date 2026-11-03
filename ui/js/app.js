@@ -98,16 +98,28 @@
   function vulnBig() {
     const v = curVuln();
     if (!v) return '<p class="empty">취약점 해설을 불러오지 못했어요.</p>';
-    const list = (a) => (Array.isArray(a) ? `<ol style="margin:6px 0 0 1.2em;padding:0;list-style:decimal">${a.map((x) => `<li style="margin:2px 0">${esc(x)}</li>`).join('')}</ol>` : `<p>${esc(a)}</p>`);
+    // 칸 전체를 쓴다: 왼쪽 이름·정보·설명, 오른쪽 어떻게 터지나·예시·막는 법, 아래 순서와 넘기기 (← → 키도)
+    const list = (a) => (Array.isArray(a) ? `<ol class="vb__steps">${a.map((x) => `<li>${esc(x)}</li>`).join('')}</ol>` : `<p>${esc(a)}</p>`);
     const n = ((vulnAt % S.vulns.length) + S.vulns.length) % S.vulns.length;
-    return `<div style="display:grid;gap:14px;max-width:72ch">
-      <div style="display:flex;align-items:baseline;gap:14px"><p style="font-size:2.25rem;font-weight:700;letter-spacing:-0.03em">${esc(v.alias)}</p><button type="button" class="u-btn-ghost" data-act="vuln-next" style="margin-left:auto">다음 취약점 ›</button></div>
-      <p style="color:var(--u-muted)">${esc(v.cve)} · ${esc(v.target)} · ${v.year}년 · ${esc(v.type)}${v.cvss != null ? ` · CVSS ${Number(v.cvss).toFixed(1)}` : ''}${v.cwe ? ` · ${esc(v.cwe)}` : ''} · ${n + 1} / ${S.vulns.length}</p>
-      <p style="font-size:var(--u-step-lead);line-height:1.6">${esc(v.desc)}</p>
-      ${v.flow ? `<div><b>어떻게 터지나</b>${list(v.flow)}</div>` : ''}
-      ${v.ex ? `<div><b>예시</b><p style="font-family:var(--u-mono);color:var(--u-muted);margin-top:4px">${esc(v.ex)}</p></div>` : ''}
-      ${v.fix ? `<div><b>막는 법</b>${list(v.fix)}</div>` : ''}
-      <p><a href="https://nvd.nist.gov/vuln/detail/${esc(v.cve)}">NVD ↗</a> · <a href="https://www.cve.org/CVERecord?id=${esc(v.cve)}">CVE.org ↗</a></p>
+    const fact = (k, val) => (val ? `<div><dt>${k}</dt><dd>${val}</dd></div>` : '');
+    return `<div class="vb">
+      <div class="vb__main">
+        <p class="vb__alias">${esc(v.alias)}</p>
+        <dl class="vb__facts">${fact('CVE', esc(v.cve))}${fact('대상', esc(v.target))}${fact('유형', esc(v.type))}${fact('공개', `${v.year}년`)}${fact('CVSS', v.cvss != null ? Number(v.cvss).toFixed(1) : '—')}${fact('분류', v.cwe ? esc(v.cwe) : '')}</dl>
+        <p class="vb__desc">${esc(v.desc)}</p>
+        <p class="vb__links"><a href="https://nvd.nist.gov/vuln/detail/${esc(v.cve)}">NVD ↗</a><a href="https://www.cve.org/CVERecord?id=${esc(v.cve)}">CVE.org ↗</a></p>
+      </div>
+      <div class="vb__more">
+        ${v.flow ? `<section><h3>어떻게 터지나</h3>${list(v.flow)}</section>` : ''}
+        ${v.ex ? `<section><h3>예시</h3><pre class="vb__ex">${esc(v.ex)}</pre></section>` : ''}
+        ${v.fix ? `<section><h3>막는 법</h3>${list(v.fix)}</section>` : ''}
+      </div>
+      <div class="vb__foot">
+        <span class="vb__count">${n + 1} / ${S.vulns.length}</span>
+        <span class="vb__keys"><kbd>←</kbd> <kbd>→</kbd> 로 넘기기</span>
+        <button type="button" class="u-btn-ghost" data-act="vuln-prev">‹ 이전</button>
+        <button type="button" class="u-btn-ghost" data-act="vuln-next">다음 취약점 ›</button>
+      </div>
     </div>`;
   }
   function netBig() {
@@ -153,6 +165,12 @@
     { transform: `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${from.width / to.width}, ${from.height / to.height})`, opacity: 0.6 },
     { transform: 'none', opacity: 1 },
   ];
+  function stepVuln(d) {
+    if (!S.vulns.length) return;
+    vulnAt += d;
+    try { localStorage.setItem('urigg-hub-vuln', String(((vulnAt % S.vulns.length) + S.vulns.length) % S.vulns.length)); } catch {}
+    refreshBig(); drawDock();
+  }
   function refreshBig() { const el = stage.querySelector('.big__body'), p = PANELS.find((x) => x.id === open); if (el && p) el.innerHTML = p.body(); }
   function summon(id) {
     const p = PANELS.find((x) => x.id === id);
@@ -162,7 +180,11 @@
     el.className = 'u-tile big';
     el.innerHTML = `<div class="u-tile__head"><h2 class="u-tile__title" style="font-size:1.75rem">${esc(p.title)}</h2><button type="button" class="big__esc"><kbd>Esc</kbd> 터미널로</button></div><div class="big__body">${p.body()}</div>`;
     el.querySelector('.big__esc').onclick = () => back();
-    el.addEventListener('click', (e) => { if (e.target.closest('[data-act="vuln-next"]')) { vulnAt += 1; try { localStorage.setItem('urigg-hub-vuln', String(vulnAt % S.vulns.length)); } catch {} refreshBig(); drawDock(); } });
+    el.addEventListener('click', (e) => {
+      if (e.target.closest('[data-act="vuln-next"]')) stepVuln(1);
+      if (e.target.closest('[data-act="vuln-prev"]')) stepVuln(-1);
+    });
+    document.activeElement?.blur?.(); // 터미널 입력칸이 ← → 키를 가져가지 않게
     stage.append(el); stage.classList.add('is-summoned'); btn.classList.add('is-away'); open = id;
     if (!reduced) {
       flying = true;
@@ -424,6 +446,7 @@
   /* ── 단축키 ── */
   addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { if (!$('#settings').hidden) $('#settings').hidden = true; else back(); }
+    if (open === 'vuln' && (e.key === 'ArrowRight' || e.key === 'ArrowLeft') && !e.target.closest('input, textarea, select')) { e.preventDefault(); stepVuln(e.key === 'ArrowRight' ? 1 : -1); }
     if (e.ctrlKey && e.key.toLowerCase() === 'l') { e.preventDefault(); lock(); }
     if (e.ctrlKey && e.key === ',') { e.preventDefault(); if (lockEl.hidden) $('#settings').hidden = false; }
     if (e.key === 'F5') { e.preventDefault(); refreshAll(); }
