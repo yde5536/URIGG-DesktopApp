@@ -101,8 +101,14 @@
     // 명령어 설명서. 타이머가 돌면 상태 자리에 가장 먼저 끝나는 것의 남은 시간
     { id: 'cmds', title: 'Commands', status: () => { const n = nextEnd(); return n ? { text: `⏱ ${left(n - Date.now())}` } : { text: `${ALL_DOCS.length}개` }; }, body: () => cmdsBig() },
   ];
-  // 사이드바 순서: 매일 먼저 보는 것이 위 (오늘 할 일·날씨 → 보안 소식 → 공부 도구 → 기록 → PC·앱). 정의 순서와 따로 여기서만 바꾼다
-  const ORDER = ['todo', 'weather', 'news', 'kev', 'ctf', 'vuln', 'tools', 'memo', 'activity', 'net', 'system', 'programs', 'cmds'];
+  // 사이드바: 비슷한 것끼리 묶고 묶음마다 작은 제목을 단다. 정의 순서와 따로 여기서만 바꾼다
+  const DOCK_GROUPS = [
+    ['오늘', ['todo', 'weather', 'memo']],
+    ['보안', ['news', 'kev', 'vuln', 'ctf', 'tools']],
+    ['기록 · PC', ['activity', 'net', 'system']],
+    ['허브', ['programs', 'cmds']],
+  ];
+  const ORDER = DOCK_GROUPS.flatMap(([, ids]) => ids);
   PANELS.sort((a, b) => ORDER.indexOf(a.id) - ORDER.indexOf(b.id));
   /* Commands 칸: 왼쪽 챕터별 목록(이름 + 한 줄), 오른쪽 누른 명령어의 사용법·옵션·예시 */
   const ALL_DOCS = CMD_DOCS.flatMap((c) => c.groups.flatMap((g) => g.cmds.map((d) => ({ ...d, chapter: c.chapter, group: g.name }))));
@@ -214,7 +220,8 @@
   const dock = $('#dock');
   function drawDock() {
     if (!dock.children.length) {
-      dock.innerHTML = PANELS.map((p) => `<li><button type="button" class="dock__item" data-id="${p.id}"><b>${esc(p.title)}</b><span></span></button></li>`).join('');
+      const item = (p) => `<li><button type="button" class="dock__item" data-id="${p.id}"><b>${esc(p.title)}</b><span></span></button></li>`;
+      dock.innerHTML = DOCK_GROUPS.map(([name, ids]) => `<li class="dock__group" aria-hidden="true">${esc(name)}</li>${ids.map((id) => item(PANELS.find((p) => p.id === id))).join('')}`).join('');
     }
     for (const p of PANELS) { const s = p.status(), sp = dock.querySelector(`[data-id="${p.id}"] span`); sp.textContent = s.text; sp.className = s.warn ? 'is-warn' : ''; }
   }

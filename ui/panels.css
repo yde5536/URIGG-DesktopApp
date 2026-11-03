@@ -132,3 +132,7 @@
 .side__dday { flex-direction: column; align-items: flex-start; gap: 6px; }
 .side__dday b { font-size: 2.75rem; line-height: 1; letter-spacing: -0.04em; }
 .side__dday span { font-size: var(--u-step-small); }
+
+/* 사이드바 묶음 제목 (오늘 · 보안 · 기록 · PC · 허브) */
+.dock__group { padding: 0 6px 2px; color: var(--u-muted); font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.04em; }
+.dock__group:not(:first-child) { margin-top: 12px; }

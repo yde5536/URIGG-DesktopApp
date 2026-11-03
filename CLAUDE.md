@@ -19,6 +19,21 @@ The **허브 (hub)**: a Windows desktop app titled "Security.log HUB" for the us
 - **Manual sync**: `npm run sync` copies the shared-file list in `scripts/sync.mjs` (brand tokens/components/logos, keywords.json, vulns.json, the calendar widget) from `../URIGG-WebSite` and `../URIGG-Brand`. Remove a file from the list to let the hub own it. The user asks "앱 동기화해 줘"; show the diff, then release.
 - Terminal commands (v0.1.5, chosen by the user 2026-11-03) in three chapters: 일상 (timer, alarm, pomo, study, todo/done, memo, calc + today, dday, fetch, open, help, clear, lock), 보안 공부 (b64, url, hex, rot, decode, hash, jwt, cidr, chmod, ip, ping), 찾기 (find, cve, vuln, ctf, kw, g). Pure helpers in `ui/js/tools.js` (no eval, MD5 hand-written), help text in `ui/js/cmd-docs.js` (a new command needs an entry there too), wiring in app.js. Commands tab (sidebar, `open cmds`) lists chapters with one-line descriptions; clicking shows usage/options/examples; clicking an example fills the terminal input. Timers/alarms/pomodoro end with a **silent glass card** rising in the centre stage (user asked: card in the terminal, no sound); `+5분` snooze, Esc dismisses. Timers, study time, memos, todos live in localStorage on this PC only. Offered but not built: alarm sound, Windows notifications, quiz/man/port/cheat, courier tracking (user declined).
 - Sidebar tabs (v0.1.8): News, KEV, Vuln, CTF, Tools (live encoders/hashes + base/subnet/chmod, `keep` so typing is not wiped), Network, Weather (Open-Meteo forecast + air quality, no key; location from `/api/net` lat/lon or a city typed in the tab, stored in settings), Todo (today's calendar events + clickable todos), Memo (cards + search), Activity (grass + recent commits read per repo from GitHub because public events dropped commit messages in 2025; bot commits filtered), System (Rust `system_info` in `src-tauri/src/system.rs`: sysinfo 0.33 + windows-sys battery, polled every 2 s while open), Programs (this hub on top, other programs below), Commands. Panel hooks: `bind(body)`, `onOpen`, `onClose`, `keep`. Styles for these in `ui/panels.css`. D-day name autocomplete from calendar events, same as the website.
+- Sidebar order (v0.1.13, user asked for similar tabs together, not by importance): `DOCK_GROUPS` in app.js with small group labels — 오늘 (Todo, Weather, Memo) · 보안 (News, KEV, Vuln, CTF, Tools) · 기록 · PC (Activity, Network, System) · 허브 (Programs, Commands). Items keep full size; the list scrolls when it does not fit (user's choice).
+- Basic commands added in v0.1.7: update, version, reload, settings, history, date, uptime, whoami, echo, hide (= exit, to tray), quit.
+- Main D-day (top left): big number with the name underneath, name clamped to two lines. Timeline redraws on the minute boundary.
+
+## Picking up on another PC (e.g. the home PC)
+
+- `git pull` in all three sibling repos (URIGG-WebSite, URIGG-Brand, URIGG-DesktopApp). Everything up to v0.1.13 is pushed.
+- UI work needs only Node: `node ../URIGG-WebSite/scripts/dev/serve.mjs ui 4183` (or `npm run preview`) and the screenshot scripts. Releases are built and signed by GitHub Actions from a tag, so the home PC does **not** need the signing key or Rust for normal work.
+- To run the real window locally (`npm run dev`) or `cargo check` the Rust side, install Rust (winget Rustup) and the VS 2022 C++ build tools; the first build takes ~30 min on a slow PC.
+
+## Open threads (2026-11-03, end of the laptop session)
+
+- Not yet confirmed by the user in the real app: auto-update from an installed version, the System tab (only testable inside Tauri), Weather location (IP lookup gave "Naju"; the user can type a city in the tab).
+- Daily-life tab ideas offered, waiting for the user to choose: Week (calendar Mon–Sun), Study (pomo/study records), Habit (daily check + streak grass), Travel (Japan trip on 1/18: yen rate, Tokyo weather, packing list), Rate (FX), Money (spending log, monthly budget), Subs (subscription due dates), YouTube (channel RSS, no key), Journal (one line a day), Sleep. Claude recommended Week, Study, Habit, Travel. Records would be localStorage unless the user wants a Supabase table (sync with the home PC).
+- Todo/memo/timers/study live in localStorage per PC, so the home PC hub starts empty for those.
 
 ## Build and release
 
