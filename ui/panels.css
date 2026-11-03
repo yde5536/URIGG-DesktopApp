@@ -127,3 +127,8 @@
 
 /* Programs 버튼: 글자를 가운데에, 크기는 작게 (변경 기록은 <a>라 글자가 위로 붙어 있었다) */
 .pg__acts .u-btn, .pg__acts .u-btn-ghost, .pg__list .u-btn { display: inline-flex; align-items: center; justify-content: center; height: 34px; min-height: 34px; padding: 0 16px; font-size: var(--u-step-small); line-height: 1; }
+
+/* 왼쪽 위 메인 D-day: 숫자를 크게, 이름은 그 아래 (사용자 요청 2026-11-03). 앞서 붙인 두 줄 줄임은 그대로 */
+.side__dday { flex-direction: column; align-items: flex-start; gap: 6px; }
+.side__dday b { font-size: 2.75rem; line-height: 1; letter-spacing: -0.04em; }
+.side__dday span { font-size: var(--u-step-small); }

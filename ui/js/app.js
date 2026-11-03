@@ -1152,7 +1152,10 @@
     refreshAll().then(() => { body.querySelector('.loading')?.remove(); exec('fetch'); });
     schedulePing(); ping();
     setInterval(() => { if (!document.hidden) refreshAll(); }, 30 * 60_000);
-    setInterval(drawTimeline, 30_000);
+    // 분이 바뀌는 순간에 맞춰 다시 그린다 (30초마다 아무 때나 그리면 "지금"이 최대 30초 늦었다)
+    const minuteTick = () => setTimeout(() => { drawTimeline(); minuteTick(); }, 60_000 - (Date.now() % 60_000) + 30);
+    minuteTick();
+    addEventListener('visibilitychange', () => { if (!document.hidden) drawTimeline(); });
     addEventListener('resize', drawTimeline);
     if (settings.update) setTimeout(() => checkUpdate(false).catch(() => {}), 8000);
   }
