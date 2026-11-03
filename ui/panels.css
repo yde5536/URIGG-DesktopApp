@@ -1,9 +1,7 @@
 /* 사이드바 칸들의 모양: Tools · Weather · Todo · Memo · Activity · System (app.css 다음에 읽는다) */
 
-/* 사이드바: 칸이 13개라 조금 촘촘하게 (넘치면 목록 안에서 스크롤) */
-.dock__list { gap: 3px; }
-.dock__item { padding: 8px 12px; border-radius: 10px; }
-.dock__item b { font-size: 0.9375rem; }
+/* 사이드바: 칸이 많아도 원래 크기 그대로, 넘치면 목록 안에서 스크롤 (사용자 결정 2026-11-03) */
+.dock__list { padding-right: 4px; }
 
 /* 공용 */
 .big h3 { margin-bottom: 8px; font-size: var(--u-step-small); font-weight: 600; color: var(--u-muted); }
