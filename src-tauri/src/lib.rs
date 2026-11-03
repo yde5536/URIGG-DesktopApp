@@ -21,14 +21,12 @@ async fn check_update(app: AppHandle) -> Result<String, String> {
     let updater = app.updater().map_err(|e| e.to_string())?;
     match updater.check().await.map_err(|e| e.to_string())? {
         Some(update) => {
-            let version = update.version.clone();
             update
                 .download_and_install(|_, _| {}, || {})
                 .await
                 .map_err(|e| e.to_string())?;
-            app.restart();
-            #[allow(unreachable_code)]
-            Ok(format!("updated:{version}"))
+            // 설치가 끝나면 새 버전으로 다시 시작한다 (돌아오지 않음)
+            app.restart()
         }
         None => Ok(format!("latest:{}", app.package_info().version)),
     }
