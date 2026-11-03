@@ -59,3 +59,6 @@ html, body { overflow-x: hidden; } /* 앱 창은 옆으로 스크롤하지 않�
 
 /* 창 전체 스크롤바도 다른 목록들처럼 얇은 반투명 막대로 */
 html { scrollbar-width: thin; scrollbar-color: rgb(255 255 255 / 0.22) transparent; }
+
+/* 알림 제목 옆 빨간 원: 제목 줄이 baseline 정렬이라 아래로 처졌다. 글자 높이 가운데에 맞춘다 */
+.below__title .count { align-self: center; }
