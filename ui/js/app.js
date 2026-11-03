@@ -36,7 +36,7 @@
   const saveSettings = () => localStorage.setItem(SET_KEY, JSON.stringify(settings));
 
   /* ── 데이터 ── */
-  const S = { news: [], kev: [], ctf: [], activity: {}, release: null, posts: [], net: null, events: [], ddays: [], vulns: [], keywords: [], loggedIn: false };
+  const S = { news: [], kev: [], ctf: [], activity: {}, release: null, posts: [], net: null, events: [], ddays: [], vulns: [], keywords: [], patches: [], loggedIn: false };
 
   /* ── 시계 · 날짜 · 지지직 제목 ── */
   const tick = () => {
@@ -97,6 +97,8 @@
     { id: 'activity', title: 'Activity', status: () => ({ text: `연속 ${streakDays()}일` }), body: () => activityBig(), onOpen: () => loadCommits().then(() => open === 'activity' && refreshBig()) },
     { id: 'system', title: 'System', keep: true, status: () => (SYS ? { text: `CPU ${Math.round(SYS.cpu)}%` } : { text: '—' }), body: () => systemBig(), onOpen: () => sysLoop(true), onClose: () => sysLoop(false) },
     // 위: 지금 쓰는 이 허브(버전·업데이트), 아래: 다른 프로그램 내려받기. 허브에서 허브를 받는 건 이상하니까
+    // 패치노트: 모든 버전, 최근 것이 맨 위 (data/patches.json, 릴리스할 때마다 맨 위에 한 칸 더한다)
+    { id: 'patch', title: 'Patch Notes', status: () => ({ text: S.patches[0] ? `v${S.patches[0].v}` : '—' }), body: () => patchBig() },
     { id: 'programs', title: 'Programs', status: () => (hubLatest && appVer && hubLatest !== appVer ? { text: '새 버전', warn: true } : { text: appVer ? `v${appVer}` : '—' }), body: () => progBig() },
     // 명령어 설명서. 타이머가 돌면 상태 자리에 가장 먼저 끝나는 것의 남은 시간
     { id: 'cmds', title: 'Commands', status: () => { const n = nextEnd(); return n ? { text: `⏱ ${left(n - Date.now())}` } : { text: `${ALL_DOCS.length}개` }; }, body: () => cmdsBig() },
@@ -106,7 +108,7 @@
     ['오늘', ['todo', 'weather', 'memo']],
     ['보안', ['news', 'kev', 'vuln', 'ctf', 'tools']],
     ['기록 · PC', ['activity', 'net', 'system']],
-    ['허브', ['programs', 'cmds']],
+    ['허브', ['programs', 'patch', 'cmds']],
   ];
   const ORDER = DOCK_GROUPS.flatMap(([, ids]) => ids);
   PANELS.sort((a, b) => ORDER.indexOf(a.id) - ORDER.indexOf(b.id));
@@ -137,6 +139,11 @@
     hubChecked = Date.now();
     Store.local('https://api.github.com/repos/yde5536/URIGG-DesktopApp/releases/latest').then((r) => { if (r?.tag_name) { hubLatest = r.tag_name.replace(/^v/, ''); drawDock(); if (open === 'programs') refreshBig(); } });
   }
+  /* ── 칸: Patch Notes — 버전마다 카드 하나, 최근 것이 맨 위. 지금 쓰는 버전에 표시 ── */
+  const patchCard = (p) => `<article class="pn__card${p.v === appVer ? ' is-now' : ''}"><header><b>v${esc(p.v)}</b><span class="pn__kind${p.kind === '기능' ? ' is-feat' : ''}">${esc(p.kind)}</span><span class="pn__title">${esc(p.title)}</span>${p.v === appVer ? '<span class="pn__now">지금 버전</span>' : ''}<time>${esc(p.date)}</time></header><ul>${p.items.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></article>`;
+  function patchBig() { return S.patches.length ? `<div class="pn">${S.patches.map(patchCard).join('')}</div>` : '<p class="empty">패치노트를 불러오지 못했어요</p>'; }
+  const patchText = (p) => `<b>v${esc(p.v)}</b>  ${esc(p.title)}  <span class="muted">${esc(p.date)} · ${esc(p.kind)}${p.v === appVer ? ' · 지금 버전' : ''}</span>\n${p.items.map((x) => `  · ${esc(x)}`).join('\n')}`;
+
   function progBig() {
     loadHubLatest();
     const newer = hubLatest && appVer && hubLatest !== appVer;
@@ -762,6 +769,7 @@
       const row = (k, v) => `<span class="ff__k">${k}</span><span>${v}</span>`, t = kst();
       return `<div class="ff"><img src="brand/logo/emblem-320.webp" alt="" width="112" height="112"><div class="ff__info"><p class="ff__title"><b>urigg</b>@<b>hub</b></p><p class="ff__rule"></p>${[
         row('날짜', `${t.getUTCMonth() + 1}월 ${t.getUTCDate()}일 ${WEEK[t.getUTCDay()]}요일`),
+        row('버전', appVer ? `v${esc(appVer)}${hubLatest && hubLatest !== appVer ? ` · <span class="warn">새 버전 v${esc(hubLatest)}</span>` : (S.patches.find((p) => p.v === appVer) ? ` · <span class="muted">${esc(S.patches.find((p) => p.v === appVer).title)}</span>` : '')}` : '<span class="muted">미리보기</span>'),
         row('다음 일정', nx ? `<b>${esc(nx.title)}</b> · ${hm(nx.start_at)} (${left})` : (S.loggedIn ? '오늘 남은 일정 없음' : '로그인 필요')),
         row('D-day', m ? `${esc(m.title)} <b>${ddLabel(daysTo(m.target))}</b>` : '—'),
         row('KEV', nk.length ? `<span class="warn">새 항목 ${nk.length}</span> · ${esc(nk[0].vendor)} ${esc(nk[0].product)}` : `새 항목 없음 · 최근 ${S.kev.length}건`),
@@ -806,6 +814,13 @@
       // 새 버전이 있으면 받는 동안 답이 없다가 그대로 다시 시작하므로, 그 안내를 먼저 찍는다
       termLine('<span class="muted">확인하는 중… 새 버전이 있으면 받아서 저절로 다시 시작해요</span>');
       return checkUpdate(false).then((r) => (r?.state === 'latest' ? `<span class="ok">✓</span> 최신 버전이에요 (v${esc(r.version)})` : '<span class="muted">새 버전을 받는 중이에요. 다 받으면 저절로 다시 시작해요</span>'));
+    },
+    // patch: 최근 패치 · patch <버전> · patch list
+    patch: (a) => {
+      if (!S.patches.length) return warnLine('패치노트를 불러오지 못했어요');
+      if (a[0] === 'list') return S.patches.map((p) => `${`v${p.v}`.padEnd(8)}${esc(p.title)}  <span class="muted">${esc(p.date)}${p.v === appVer ? ' · 지금' : ''}</span>`).join('\n') + '\n<span class="muted">patch &lt;버전&gt; 자세히 · open patch 로 탭</span>';
+      if (a[0]) { const v = a[0].replace(/^v/i, ''), p = S.patches.find((x) => x.v === v); return p ? patchText(p) : warnLine(`v${esc(v)} 패치노트가 없어요 · patch list 로 목록`); }
+      return patchText(S.patches[0]);
     },
     version: () => `<b>Security.log HUB</b> v${esc(appVer || '?')}${hubLatest && appVer && hubLatest !== appVer ? `  <span class="warn">새 버전 v${esc(hubLatest)} · update로 받기</span>` : ''}\n<span class="muted">Tauri 2 · ${esc(navigator.userAgent.match(/Edg\/[\d.]+/)?.[0]?.replace('Edg/', 'WebView2 ') || 'browser')}</span>`,
     reload: () => refreshAll().then(() => '<span class="ok">✓</span> 뉴스 · KEV · CTF · 일정 · D-day를 새로 불러왔어요'),
@@ -1070,7 +1085,7 @@
   // keep: 입력 중인 글을 지우지 않도록 데이터가 바뀌어도 저절로 다시 그리지 않는 칸 (Tools)
   function drawAll() { drawDock(); drawTimeline(); drawDdays(); buildAlerts(); drawGrass(); drawKeyword(); if (open && !PANELS.find((x) => x.id === open)?.keep) refreshBig(); }
   async function refreshAll() { await Promise.all([loadPublic().then(() => loadWeather(true)), loadPrivate()]); drawAll(); } // 날씨는 IP 위치(S.net)를 받은 다음
-  Promise.all([Store.local('data/keywords.json'), Store.local('data/vulns.json')]).then(([k, v]) => { S.keywords = k || []; S.vulns = v || []; drawKeyword(); drawDock(); });
+  Promise.all([Store.local('data/keywords.json'), Store.local('data/vulns.json'), Store.local('data/patches.json')]).then(([k, v, pn]) => { S.keywords = k || []; S.vulns = v || []; S.patches = pn || []; drawKeyword(); drawDock(); });
 
   /* ── 잠금 화면 ── */
   const lockEl = $('#lock'), form = $('#lock-form'), msg = $('#lock-msg'), pin = $('#pin');
@@ -1170,10 +1185,19 @@
   T?.app?.getVersion?.().then((v) => { $('#set-version').textContent = v; });
   $('#set-check').onclick = () => checkUpdate(true);
 
+  // 업데이트하고 처음 켰으면 이번 버전에서 바뀐 점을 터미널에 한 번
+  function showNewPatch() {
+    if (!appVer) return;
+    const K = 'urigg-hub-seen-version';
+    let seen = null; try { seen = localStorage.getItem(K); localStorage.setItem(K, appVer); } catch {}
+    const p = S.patches.find((x) => x.v === appVer);
+    if (seen && seen !== appVer && p) termLine(`<span class="ok">v${esc(appVer)}로 업데이트했어요</span>\n${patchText(p)}\n<span class="muted">patch list · open patch 로 지난 패치까지</span>`);
+  }
+
   /* ── 시작: 잠금 화면부터 ── */
   function start() {
     termLine('<span class="muted">불러오는 중…</span>', 'loading');
-    refreshAll().then(() => { body.querySelector('.loading')?.remove(); exec('fetch'); });
+    refreshAll().then(() => { body.querySelector('.loading')?.remove(); exec('fetch'); showNewPatch(); });
     schedulePing(); ping();
     setInterval(() => { if (!document.hidden) refreshAll(); }, 30 * 60_000);
     // 분이 바뀌는 순간에 맞춰 다시 그린다 (30초마다 아무 때나 그리면 "지금"이 최대 30초 늦었다)

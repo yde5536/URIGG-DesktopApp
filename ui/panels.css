@@ -136,3 +136,17 @@
 /* 사이드바 묶음 제목 (오늘 · 보안 · 기록 · PC · 허브) */
 .dock__group { padding: 0 6px 2px; color: var(--u-muted); font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.04em; }
 .dock__group:not(:first-child) { margin-top: 12px; }
+
+/* ── Patch Notes: 버전마다 카드, 최근 것이 위 ── */
+.pn { display: grid; gap: 12px; align-content: start; }
+.pn__card { padding: 14px 18px; border-radius: 14px; background: rgb(255 255 255 / 0.04); }
+.pn__card.is-now { background: rgb(255 255 255 / 0.08); }
+.pn__card header { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.pn__card header b { font-size: var(--u-step-lead, 1.125rem); font-variant-numeric: tabular-nums; }
+.pn__title { font-weight: 600; }
+.pn__kind { padding: 0 8px; border-radius: 999px; background: rgb(255 255 255 / 0.08); color: var(--u-muted, #9aa); font-size: 0.6875rem; font-weight: 600; line-height: 1.7; }
+.pn__kind.is-feat { background: rgb(239 66 87 / 0.16); color: var(--u-accent-text, #ef4257); }
+.pn__now { font-size: 0.75rem; color: var(--u-ink, #fff); opacity: 0.8; }
+.pn__card time { margin-left: auto; font-size: 0.75rem; color: var(--u-muted, #9aa); font-variant-numeric: tabular-nums; }
+.pn__card ul { margin: 8px 0 0; padding-left: 1.1em; display: grid; gap: 4px; font-size: var(--u-step-small, 0.875rem); line-height: 1.55; list-style: disc; }
+.pn__card li::marker { color: var(--u-muted, #9aa); }
