@@ -41,8 +41,12 @@ html, body { overflow-x: hidden; } /* 앱 창은 옆으로 스크롤하지 않�
 /* 모든 창 곡률을 처음 터미널 곡률(12px)로 통일. 안쪽 작은 것은 8px */
 :root { --u-radius-tile: 12px; }
 .u-tile, .term, .strip, .side, .dock, .big, .settings, .tile { border-radius: 12px; }
-.dock__item, .vb__facts, .vb__ex, .dset__form input, .cal-frame { border-radius: 8px; }
+.dock__item, .vb__facts, .vb__ex, .dset__form input { border-radius: 8px; } /* 캘린더 위젯 칸은 위젯 곡률(18px) 그대로 */
 
 /* 설정의 드롭다운: 펼친 목록도 어두운 바탕에 밝은 글자로 */
 .set-row select, .set-row select option { background-color: #1b1d24; color: var(--u-ink); }
 .set-row select option:checked { background-color: #2e3340; }
+
+/* PIN 칸: 글자 간격이 마지막 글자 뒤에도 붙어 점들이 왼쪽으로 쏠리므로 같은 만큼 왼쪽을 띄운다 */
+.lock__pin input { padding-left: 0.4em; }
+.lock__pin input:placeholder-shown { padding-left: 0.05em; }
