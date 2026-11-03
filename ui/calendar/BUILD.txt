@@ -1,0 +1,1 @@
+URIGG-ClaudeCalender 1fcda01 — scripts/build-calendar.mjs로 만든 웹용 위젯

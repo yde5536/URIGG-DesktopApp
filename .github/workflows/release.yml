@@ -1,0 +1,38 @@
+# 설치 파일 만들기: 'v0.1.0' 같은 태그를 올리면(또는 Actions에서 직접 실행하면) Windows 설치 파일을 빌드해
+# GitHub 릴리스에 올린다. 자동 업데이트용 latest.json도 함께 올라간다.
+# 필요한 저장소 Secret: TAURI_SIGNING_PRIVATE_KEY (업데이트 서명 키, 비밀번호 없음)
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+      - run: npm ci
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
+        with:
+          tagName: v__VERSION__
+          releaseName: 'URIGG HUB v__VERSION__'
+          releaseBody: '집 컴퓨터용 Security.log HUB. 설치 파일(-setup.exe)을 받아 실행하세요. 설치한 뒤에는 자동으로 업데이트돼요.'
+          releaseDraft: false
+          prerelease: false
+          includeUpdaterJson: true

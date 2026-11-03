@@ -1,0 +1,70 @@
+/* URIGG 부품 — 허브 사이트에서 쓰는 유리 칸·탭 알약·유리 아이콘·주요 버튼·오로라를 어디서든 같은 모습으로.
+   tokens/urigg.css를 먼저 불러온 뒤 이 파일을 불러온다. 클래스는 모두 u- 로 시작해 각 프로젝트의 이름과 겹치지 않는다. */
+
+/* 바탕: 검정 + (선택) 오로라 */
+.u-page { margin: 0; background: var(--u-bg); color: var(--u-ink); font-family: var(--u-font); font-size: var(--u-step-body); line-height: 1.5; word-break: keep-all; -webkit-font-smoothing: antialiased; }
+
+/* 오로라: <div class="u-aurora"><span></span><span></span><span></span></div> 를 body 맨 앞에.
+   움직임은 각 프로젝트가 정한다 (허브는 초당 8번 JS로 아주 느리게 옮긴다). 여기서는 자리와 빛만. */
+.u-aurora { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+.u-aurora span { position: absolute; width: 95vmax; height: 95vmax; border-radius: 50%; }
+.u-aurora span:nth-child(1) { right: -38vmax; top: -48vmax; background: radial-gradient(closest-side, rgb(58 86 150 / 0.42), rgb(58 86 150 / 0.16) 50%, transparent); }
+.u-aurora span:nth-child(2) { left: -42vmax; bottom: -50vmax; background: radial-gradient(closest-side, rgb(34 52 89 / 0.55), rgb(34 52 89 / 0.2) 50%, transparent); }
+.u-aurora span:nth-child(3) { left: 18vw; top: 10vh; width: 70vmax; height: 70vmax; background: radial-gradient(closest-side, rgb(140 40 70 / 0.14), rgb(80 70 140 / 0.07) 55%, transparent); }
+
+/* 유리 칸 */
+.u-tile {
+  position: relative; isolation: isolate; display: grid; gap: 10px; align-content: start;
+  padding: var(--u-tile-pad); border-radius: var(--u-radius-tile);
+  background: var(--u-glass-tint);
+  -webkit-backdrop-filter: var(--u-glass-blur); backdrop-filter: var(--u-glass-blur);
+  box-shadow: var(--u-glass-edge), var(--u-glass-lift);
+}
+.u-tile::before { content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: var(--u-glass-sheen); pointer-events: none; }
+.u-tile__head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 8px; }
+.u-tile__title { margin: 0; font-size: var(--u-step-lead); font-weight: 600; letter-spacing: -0.02em; }
+.u-tile__more { margin-left: auto; font-size: var(--u-step-small); color: var(--u-muted); text-decoration: none; }
+
+/* 탭 알약: 고른 탭 뒤로 유리 알약이 미끄러진다. 알약 위치는 JS가 width·transform으로 옮긴다
+   <div class="u-tabs"><span class="u-tabs__pill"></span><button aria-selected="true">…</button>…</div> */
+.u-tabs { position: relative; display: flex; gap: 4px; margin-left: -10px; }
+.u-tabs button { position: relative; z-index: 1; border: 0; background: none; padding: 3px 10px; border-radius: var(--u-radius-pill); font: inherit; font-size: var(--u-step-lead); font-weight: 600; letter-spacing: -0.02em; color: var(--u-muted); cursor: pointer; transition: color 300ms ease; }
+.u-tabs button[aria-selected='true'], .u-tabs button:hover { color: var(--u-ink); }
+.u-tabs__pill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: var(--u-radius-pill); background: rgb(255 255 255 / 0.09); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.12), inset 1px 1px 0 -0.5px rgb(255 255 255 / 0.35); transition: transform var(--u-dur-move) var(--u-ease-pill), width var(--u-dur-move) var(--u-ease-pill); pointer-events: none; }
+
+/* 유리 아이콘 버튼 (정사각형, 흰색 단색 아이콘, 이름은 아래) */
+.u-key { display: grid; justify-items: center; gap: 6px; text-decoration: none; color: var(--u-muted); font-size: 0.8125rem; font-weight: 500; }
+.u-key__glass {
+  position: relative; display: grid; place-items: center; width: 80px; aspect-ratio: 1; border-radius: var(--u-radius-key);
+  background: rgb(255 255 255 / 0.07) linear-gradient(180deg, rgb(255 255 255 / 0.14), rgb(255 255 255 / 0) 45%);
+  -webkit-backdrop-filter: blur(8px) saturate(170%); backdrop-filter: blur(8px) saturate(170%);
+  box-shadow: var(--u-glass-edge), 0 10px 22px -12px rgb(0 0 0 / 0.8);
+  transition: transform 240ms var(--u-ease-spring), background-color var(--u-dur-quick);
+}
+.u-key__glass img { width: 42%; height: 42%; opacity: 0.92; }
+.u-key:hover { color: var(--u-ink); }
+.u-key:hover .u-key__glass { background-color: rgb(255 255 255 / 0.13); transform: translateY(-3px); }
+.u-key:active .u-key__glass { transform: scale(0.94); transition-duration: var(--u-dur-press); }
+
+/* 주요 버튼: 크림슨 유리 캡슐. 한 화면에 하나쯤만 */
+.u-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 44px; padding: 0 22px;
+  border: 0; border-radius: var(--u-radius-pill); background: rgb(177 18 38 / 0.72); color: var(--u-accent-ink);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.4), inset 0 0 0 1px rgb(255 255 255 / 0.14);
+  font: inherit; font-weight: 500; text-decoration: none; cursor: pointer;
+  transition: transform 240ms var(--u-ease-spring), background-color var(--u-dur-quick);
+}
+.u-btn:hover { background: rgb(200 24 46 / 0.86); transform: translateY(-2px); }
+.u-btn:active { transform: scale(0.95); transition-duration: var(--u-dur-press); }
+
+/* 보조 버튼: 유리 알약 (다음 ›, 새로고침 같은 것) */
+.u-btn-ghost { border: 0; padding: 6px 14px; border-radius: var(--u-radius-pill); background: rgb(255 255 255 / 0.08); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.1); color: var(--u-ink); font: inherit; font-size: var(--u-step-small); cursor: pointer; transition: background-color var(--u-dur-quick), transform var(--u-dur-press); }
+.u-btn-ghost:hover { background: rgb(255 255 255 / 0.15); }
+.u-btn-ghost:active { transform: scale(0.95); }
+
+/* 로고 엠블럼: 둥근 로고 + 은은한 빛무리. 테두리 링·둥실 떠오르는 움직임은 쓰지 않는다 */
+.u-emblem { width: 104px; aspect-ratio: 1; border-radius: 50%; box-shadow: 0 0 70px 6px var(--u-halo); }
+
+@media (prefers-reduced-motion: reduce) {
+  .u-tabs__pill, .u-tabs button, .u-key__glass, .u-btn, .u-btn-ghost { transition: none; }
+}

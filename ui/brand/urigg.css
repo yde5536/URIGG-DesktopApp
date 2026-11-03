@@ -1,0 +1,68 @@
+/* URIGG 디자인 토큰 — 색·글꼴·크기·유리·움직임의 기준값.
+   모든 URIGG 프로젝트(허브 사이트, 크롬 확장, 봇 이미지, GitHub 프로필…)가 이 값을 가져다 쓴다.
+   쓰는 법: <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/yde5536/URIGG-Brand@main/tokens/urigg.css">
+   같은 값이 tokens/urigg.json에도 있다. 값을 바꿀 때는 두 파일을 함께 고친다. */
+
+:root {
+  /* ── 색 ─────────────────────────────
+     검정 바탕에 거의 흰 글자. 크림슨은 주요 버튼(한 화면에 하나쯤)과 경고 글자에만 쓴다. */
+  --u-bg: #0a0a0a;            /* 페이지 바탕 */
+  --u-surface: #151515;       /* 유리를 못 쓸 때의 면 */
+  --u-surface-2: #1f1f1f;
+  --u-ink: #efefef;           /* 본문 글자 */
+  --u-muted: #a3a3a3;         /* 보조 글자·라벨 */
+  --u-accent: #b11226;        /* 크림슨: 주요 버튼 */
+  --u-accent-press: #8f0e1e;
+  --u-accent-ink: #ffffff;    /* 크림슨 위 글자 */
+  --u-accent-text: #ef4257;   /* 검정 위에 쓰는 크림슨 글자 (경고·랜섬웨어 표시 등) */
+
+  /* 오로라: 화면 뒤에서 아주 느리게 흐르는 빛 (네이비 · 푸른 회색 · 크림슨 조금) */
+  --u-aurora-1: rgb(58 86 150);
+  --u-aurora-2: rgb(34 52 89);
+  --u-aurora-3: rgb(140 40 70);
+  --u-halo: rgb(60 92 170 / 0.5);   /* 로고 뒤 빛무리 */
+
+  /* 잔디(활동량): 빈 칸 → 진한 칸, 한 가지 푸른 색의 밝기로만 */
+  --u-level-0: rgb(255 255 255 / 0.06);
+  --u-level-1: rgb(140 170 235 / 0.38);
+  --u-level-2: rgb(160 190 245 / 0.66);
+  --u-level-3: rgb(215 228 255 / 0.95);
+
+  /* ── 글꼴 ───────────────────────────
+     영문 Switzer + 한글 Pretendard. 고정폭(JetBrains Mono)은 시간·주소·IP 같은 작은 라벨에만. */
+  --u-font: 'Switzer', 'Pretendard Variable', Pretendard, system-ui, sans-serif;
+  --u-mono: 'JetBrains Mono', 'Pretendard Variable', ui-monospace, monospace;
+  --u-step-small: clamp(0.8125rem, 0.79rem + 0.1vw, 0.875rem);   /* 라벨·목록 */
+  --u-step-body: clamp(1.0625rem, 1rem + 0.25vw, 1.1875rem);     /* 본문 */
+  --u-step-lead: clamp(1.25rem, 1.05rem + 0.5vw, 1.5rem);        /* 칸 제목·탭 */
+  --u-step-head: clamp(1.75rem, 1.2rem + 1.6vw, 2.5rem);         /* 장면 제목 */
+  --u-step-display: clamp(3rem, 5.6vw, 5.25rem);                 /* URIGG 큰 제목 */
+  --u-tracking-display: -0.045em;
+  --u-tracking-head: -0.03em;
+
+  /* ── 간격·모서리 ───────────────────── */
+  --u-gutter: clamp(20px, 3.4vw, 48px);
+  --u-gap: 16px;               /* 칸 사이 */
+  --u-tile-pad: 18px 22px;     /* 칸 안쪽 */
+  --u-radius-tile: 26px;       /* 칸 */
+  --u-radius-key: 26%;         /* 정사각형 아이콘 버튼 */
+  --u-radius-pill: 999px;      /* 버튼·탭 알약 */
+
+  /* ── 리퀴드 글라스 ───────────────────
+     꽤 투명하지만 완전히 맑지는 않게. 테두리는 얇은 빛 한 줄, 위쪽에만 은은한 반사광. */
+  --u-glass-tint: rgb(18 20 26 / 0.16);
+  --u-glass-blur: blur(10px) saturate(170%);
+  --u-glass-edge: inset 0 0 0 1px rgb(255 255 255 / 0.14),
+                  inset 1.5px 1.5px 0 -0.5px rgb(255 255 255 / 0.55),
+                  inset -1px -1px 0 -0.5px rgb(255 255 255 / 0.22);
+  --u-glass-lift: 0 18px 40px -12px rgb(0 0 0 / 0.55);
+  --u-glass-sheen: linear-gradient(180deg, rgb(255 255 255 / 0.10), rgb(255 255 255 / 0) 38%);
+
+  /* ── 움직임 ─────────────────────────── */
+  --u-ease-out: cubic-bezier(0.16, 1, 0.3, 1);        /* 보통 전환 */
+  --u-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* 버튼이 살짝 튀어 오를 때 */
+  --u-ease-pill: cubic-bezier(0.3, 1.4, 0.5, 1);      /* 탭 알약이 미끄러질 때 */
+  --u-dur-press: 100ms;
+  --u-dur-quick: 200ms;
+  --u-dur-move: 420ms;
+}
