@@ -5,7 +5,7 @@ window.CMD_DOCS = [
     { name: '기본', cmds: [
       { name: 'help', short: '명령어 목록, 명령어 하나 자세히', usage: ['help', 'help <명령어>'], opts: [], ex: ['help', 'help timer'], notes: ['Commands 칸(open cmds)에서 눌러 보면 더 보기 편해요.', 'Tab을 누르면 명령어 이름이 자동으로 채워져요.'] },
       { name: 'fetch', short: '오늘 요약 (일정, D-day, KEV, CTF, 할 일…)', usage: ['fetch'], opts: [], ex: ['fetch'], notes: ['허브를 열 때 저절로 한 번 나와요.'] },
-      { name: 'open', short: '사이드바 칸을 가운데로 크게', usage: ['open <칸>'], opts: [['<칸>', 'news · kev · vuln · ctf · tools · net · weather · todo · memo · activity · system · programs · cmds']], ex: ['open kev', 'open cmds'], notes: ['Esc로 터미널로 돌아와요.'] },
+      { name: 'open', short: '사이드바 칸을 가운데로 크게', usage: ['open <칸>'], opts: [['<칸>', 'todo · weather · news · kev · ctf · vuln · tools · memo · activity · net · system · programs · cmds']], ex: ['open kev', 'open cmds'], notes: ['Esc로 터미널로 돌아와요.'] },
       { name: 'clear', short: '터미널 화면 비우기', usage: ['clear'], opts: [], ex: ['clear'], notes: [] },
       { name: 'history', short: '지금까지 친 명령어 목록', usage: ['history', 'history clear'], opts: [['clear', '기록 지우기']], ex: ['history'], notes: ['↑ ↓ 키로 이전 명령을 다시 불러올 수도 있어요.', '허브를 다시 켜면 비워져요.'] },
       { name: 'update', short: '새 버전 확인, 있으면 받아서 다시 시작', usage: ['update'], opts: [], ex: ['update'], notes: ['자동 업데이트가 켜져 있으면 허브를 켤 때마다 저절로 확인해요.', '받는 동안은 답이 없다가 새 버전으로 다시 켜져요.'] },

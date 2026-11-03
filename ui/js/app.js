@@ -101,6 +101,9 @@
     // 명령어 설명서. 타이머가 돌면 상태 자리에 가장 먼저 끝나는 것의 남은 시간
     { id: 'cmds', title: 'Commands', status: () => { const n = nextEnd(); return n ? { text: `⏱ ${left(n - Date.now())}` } : { text: `${ALL_DOCS.length}개` }; }, body: () => cmdsBig() },
   ];
+  // 사이드바 순서: 매일 먼저 보는 것이 위 (오늘 할 일·날씨 → 보안 소식 → 공부 도구 → 기록 → PC·앱). 정의 순서와 따로 여기서만 바꾼다
+  const ORDER = ['todo', 'weather', 'news', 'kev', 'ctf', 'vuln', 'tools', 'memo', 'activity', 'net', 'system', 'programs', 'cmds'];
+  PANELS.sort((a, b) => ORDER.indexOf(a.id) - ORDER.indexOf(b.id));
   /* Commands 칸: 왼쪽 챕터별 목록(이름 + 한 줄), 오른쪽 누른 명령어의 사용법·옵션·예시 */
   const ALL_DOCS = CMD_DOCS.flatMap((c) => c.groups.flatMap((g) => g.cmds.map((d) => ({ ...d, chapter: c.chapter, group: g.name }))));
   const docOf = (n) => ALL_DOCS.find((d) => d.name === n);
