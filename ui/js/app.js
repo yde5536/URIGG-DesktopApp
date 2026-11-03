@@ -510,7 +510,14 @@
     /* 일상: 메모 · 할 일 · 계산 */
     todo: (a, rest) => {
       const list = () => (todos.length ? todos.map((t, i) => `${i + 1}  ${t.done ? '<span class="ok">✓</span>' : '□'}  ${t.done ? `<span class="muted">${esc(t.text)}</span>` : esc(t.text)}`).join('\n') : '<span class="muted">할 일이 없어요. todo &lt;내용&gt;으로 추가해요</span>');
-      if (!a.length) return list();
+      // 목록 위에 오늘 캘린더 일정도 (보기만, 끝난 시각 일정은 흐리게). 번호는 할 일에만
+      const agenda = () => {
+        const today = ymd(), ev = S.events.filter((e) => ymd(Date.parse(e.start_at)) === today);
+        if (!S.loggedIn) return '';
+        const rows = ev.map((e) => { const past = !e.all_day && Date.parse(e.start_at) < Date.now(); const s = `${e.all_day ? '종일 ' : hm(e.start_at)}  ${esc(e.emoji ? `${e.emoji} ` : '')}${esc(e.title)}`; return `   ${past ? `<span class="muted">${s}</span>` : s}`; });
+        return `<span class="ok">오늘 일정</span>\n${rows.length ? rows.join('\n') : '   <span class="muted">없어요</span>'}\n<span class="ok">할 일</span>\n`;
+      };
+      if (!a.length) return agenda() + list();
       if (a[0] === 'rm' && a.length === 2) { const i = +a[1] - 1; if (!todos[i]) return warnLine('그 번호가 없어요'); todos.splice(i, 1); save(TODO_KEY, todos); return list(); }
       if (a[0] === 'clear' && a.length === 1) { todos = todos.filter((t) => !t.done); save(TODO_KEY, todos); return list(); }
       todos.push({ text: rest, done: false, t: Date.now() }); save(TODO_KEY, todos);
@@ -706,7 +713,7 @@
     $('#lock-login').hidden = m !== 'login';
     $('#lock-pinbox').hidden = !['pin', 'setpin', 'confirm'].includes(m);
     $('#lock-alt').hidden = m !== 'pin';
-    pin.value = '';
+    pin.value = ''; showPin(false);
     pin.placeholder = m === 'setpin' ? '새 PIN 6자리' : m === 'confirm' ? 'PIN 한 번 더' : 'PIN';
     say(text || (m === 'login' ? 'Supabase 계정으로 로그인하세요' : m === 'setpin' ? '이 PC에서 쓸 PIN을 정하세요' : ''), err);
     setTimeout(() => (m === 'login' ? $('#lock-email') : pin).focus(), 30);
@@ -742,6 +749,9 @@
     else if (r === 'reset') setMode('login', 'PIN을 5번 틀렸어요. 비밀번호로 로그인하세요', true);
     else { pin.value = ''; say(`PIN이 맞지 않아요 (${r}번 남음)`, true); }
   });
+  // PIN 보기: 누르면 숫자로, 다시 누르면 점으로. 잠글 때마다 점으로 돌아간다
+  const showPin = (on) => { pin.type = on ? 'text' : 'password'; $('#pin-eye').setAttribute('aria-pressed', String(on)); $('#pin-eye').setAttribute('aria-label', on ? 'PIN 숨기기' : 'PIN 보기'); };
+  $('#pin-eye').onclick = (e) => { e.preventDefault(); showPin(pin.type === 'password'); pin.focus(); };
   $('#lock-alt').onclick = () => setMode('login');
   $('#btn-lock').onclick = lock;
 

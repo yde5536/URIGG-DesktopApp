@@ -110,3 +110,16 @@ html { scrollbar-width: thin; scrollbar-color: rgb(255 255 255 / 0.22) transpare
 .cb__notes { display: grid; gap: 6px; padding-left: 1.1em; list-style: disc; color: var(--u-muted); font-size: var(--u-step-small); line-height: 1.6; }
 .cb__ex button { max-width: 100%; text-align: left; }
 .cb__ex code { overflow-wrap: anywhere; }
+
+/* PIN 보기 눈: WebView2 기본 눈은 크고 오른쪽 끝에 붙어 점들을 왼쪽으로 밀었다. 기본 것은 숨기고,
+   양쪽에 같은 여백을 두어 점은 가운데 그대로, 작은 흰 눈을 안쪽에 둔다 */
+.lock__pin { position: relative; display: block; }
+.lock__pin input::-ms-reveal, .lock__pin input::-ms-clear { display: none; }
+.lock__pin input { padding: 0 46px 0 calc(46px + 0.4em); }
+.lock__pin input:placeholder-shown { padding-left: calc(46px + 0.05em); }
+.lock__eye { position: absolute; top: 50%; right: 18px; width: 28px; height: 28px; margin-top: -14px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%; background: none; color: rgb(255 255 255 / 0.85); cursor: pointer; transition: color var(--u-dur-quick), background-color var(--u-dur-quick); }
+.lock__eye:hover { color: #fff; background: rgb(255 255 255 / 0.08); }
+.lock__eye svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+.lock__eye[aria-pressed="true"] { color: #fff; }
+.lock__eye[aria-pressed="true"] svg { stroke-dasharray: none; }
+.lock__eye[aria-pressed="true"]::after { content: ''; position: absolute; width: 19px; height: 1.8px; border-radius: 1px; background: currentColor; transform: rotate(-40deg); } /* 보는 중: 빗금으로 숨기기 표시 */

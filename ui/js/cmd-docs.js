@@ -29,7 +29,7 @@ window.CMD_DOCS = [
         usage: ['todo <내용>', 'todo', 'todo rm <번호>', 'todo clear'],
         opts: [['<내용>', '할 일 추가'], ['(없음)', '목록 보기'], ['rm <번호>', '지우기'], ['clear', '끝낸 것만 모두 지우기']],
         ex: ['todo 리마 2차 접수', 'todo', 'done 1'],
-        notes: ['끝낸 건 done <번호>로 체크해요.', '이 PC에만 저장돼요.'] },
+        notes: ['목록 위에 오늘 캘린더 일정도 같이 나와요 (보기만, 바꾸기는 캘린더에서).', '끝낸 건 done <번호>로 체크해요.', '이 PC에만 저장돼요.'] },
       { name: 'done', short: '할 일 끝냄 표시 (다시 치면 되돌리기)',
         usage: ['done <번호>'], opts: [['<번호>', 'todo 목록의 번호']], ex: ['done 2'], notes: [] },
       { name: 'memo', short: '짧은 메모 저장하고 다시 보기',

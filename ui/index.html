@@ -142,7 +142,7 @@
         <input id="lock-pass" type="password" placeholder="비밀번호" autocomplete="current-password" aria-label="비밀번호">
         <button class="u-btn" type="submit">로그인</button>
       </div>
-      <label class="lock__pin" id="lock-pinbox" hidden><span class="sr-only">PIN</span><input id="pin" type="password" inputmode="numeric" maxlength="6" placeholder="PIN" autocomplete="off"></label>
+      <label class="lock__pin" id="lock-pinbox" hidden><span class="sr-only">PIN</span><input id="pin" type="password" inputmode="numeric" maxlength="6" placeholder="PIN" autocomplete="off"><button type="button" class="lock__eye" id="pin-eye" aria-label="PIN 보기" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/></svg></button></label>
       <button type="button" class="lock__alt" id="lock-alt" hidden>비밀번호로 로그인</button>
     </form>
     <p class="lock__clock" id="lock-clock"></p>
