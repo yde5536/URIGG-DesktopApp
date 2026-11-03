@@ -427,7 +427,7 @@
     el.animate([{ opacity: 1 }, { opacity: 0, transform: 'translateY(14px) scale(0.98)' }], { duration: 200, fill: 'forwards' }).onfinish = () => el.remove();
   }
 
-  /* ── 타이머 · 알람 · 뽀모도로 · 공부 시간 · 메모 · 할 일 (이 PC에만 저장) ── */
+  /* ── 타이머 · 알람 · 뽀모도로 · 공부 시간(이 PC에만) · 메모 · 할 일(Supabase로 여러 PC가 같이, sync.js) ── */
   const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
   const TM_KEY = 'urigg-hub-timers', PO_KEY = 'urigg-hub-pomo', ST_KEY = 'urigg-hub-study', MEMO_KEY = 'urigg-hub-memo', TODO_KEY = 'urigg-hub-todo';
@@ -435,6 +435,19 @@
   let pomo = load(PO_KEY, null); // { focus, rest, total, round, phase: 'focus'|'rest', end }
   const study = load(ST_KEY, { days: {}, running: null });
   let memos = load(MEMO_KEY, []), todos = load(TODO_KEY, []);
+  // 할 일·메모: 이 PC에 먼저 저장하고, 잠깐 뒤 바뀐 것만 Supabase에 올린다
+  const later = {};
+  const pushSoon = (kind, list) => { clearTimeout(later[kind]); later[kind] = setTimeout(() => Sync.push(kind, list()), 400); };
+  const saveTodos = () => { Sync.ensureIds(todos); save(TODO_KEY, todos); pushSoon('todo', () => todos); };
+  const saveMemos = () => { Sync.ensureIds(memos); save(MEMO_KEY, memos); pushSoon('memo', () => memos); };
+  // 받아 와서 합치고, 못 올린 것은 올린다. 바뀐 게 있으면 true
+  async function syncNotes() {
+    const before = JSON.stringify([todos, memos]);
+    const [t, mm] = await Promise.all([Sync.pull('todo', todos), Sync.pull('memo', memos)]);
+    if (t) { todos = t.sort((a, b) => a.t - b.t); save(TODO_KEY, todos); await Sync.push('todo', todos); }
+    if (mm) { memos = mm.sort((a, b) => b.t - a.t); save(MEMO_KEY, memos); await Sync.push('memo', memos); }
+    return JSON.stringify([todos, memos]) !== before;
+  }
   const left = (ms) => { const s = Math.max(0, Math.ceil(ms / 1000)), h = Math.floor(s / 3600); return h ? `${h}:${two(Math.floor(s / 60) % 60)}:${two(s % 60)}` : `${two(Math.floor(s / 60))}:${two(s % 60)}`; };
   const fmtMin = (m) => { m = Math.round(m); const h = Math.floor(m / 60); return h ? `${h}시간${m % 60 ? ` ${m % 60}분` : ''}` : `${m}분`; };
   const fmtDur = (ms) => (ms < 60_000 ? `${Math.round(ms / 1000)}초` : fmtMin(ms / 60_000));
@@ -625,14 +638,14 @@
       const f = e.target.closest('[data-form="todo"]'); if (!f) return;
       e.preventDefault();
       const v = f.t.value.trim(); if (!v) return;
-      todos.push({ text: v, done: false, t: Date.now() }); save(TODO_KEY, todos); refreshBig(); drawDock();
+      todos.push({ text: v, done: false, t: Date.now() }); saveTodos(); refreshBig(); drawDock();
       b.querySelector('[data-form="todo"] input')?.focus();
     });
     b.addEventListener('click', (e) => {
       const x = e.target.closest('[data-todo]'); if (!x) return;
       const i = +x.dataset.i, k = x.dataset.todo;
       if (k === 'toggle') todos[i].done = !todos[i].done; else if (k === 'del') todos.splice(i, 1); else todos = todos.filter((t) => !t.done);
-      save(TODO_KEY, todos); refreshBig(); drawDock();
+      saveTodos(); refreshBig(); drawDock();
     });
   }
 
@@ -651,11 +664,11 @@
   }
   function bindMemo(b) {
     const grid = () => { b.querySelector('#mm-grid').innerHTML = memoCards(); drawDock(); };
-    const add = (f) => { const v = f.m.value.trim(); if (!v) return; memos.unshift({ text: v, t: Date.now() }); save(MEMO_KEY, memos); f.m.value = ''; grid(); };
+    const add = (f) => { const v = f.m.value.trim(); if (!v) return; memos.unshift({ text: v, t: Date.now() }); saveMemos(); f.m.value = ''; grid(); };
     b.addEventListener('submit', (e) => { const f = e.target.closest('[data-form="memo"]'); if (!f) return; e.preventDefault(); add(f); });
     b.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.ctrlKey && e.target.name === 'm') { e.preventDefault(); add(e.target.form); } });
     b.addEventListener('input', (e) => { if (e.target.dataset.memo === 'q') { memoQ = e.target.value; grid(); } });
-    b.addEventListener('click', (e) => { const x = e.target.closest('[data-memo="del"]'); if (!x) return; memos.splice(+x.dataset.i, 1); save(MEMO_KEY, memos); grid(); });
+    b.addEventListener('click', (e) => { const x = e.target.closest('[data-memo="del"]'); if (!x) return; memos.splice(+x.dataset.i, 1); saveMemos(); grid(); });
   }
 
   /* ── 칸: Activity (잔디 크게 + 최근 커밋 + 저장소별) ──
@@ -871,18 +884,18 @@
         return `<span class="ok">오늘 일정</span>\n${rows.length ? rows.join('\n') : '   <span class="muted">없어요</span>'}\n<span class="ok">할 일</span>\n`;
       };
       if (!a.length) return agenda() + list();
-      if (a[0] === 'rm' && a.length === 2) { const i = +a[1] - 1; if (!todos[i]) return warnLine('그 번호가 없어요'); todos.splice(i, 1); save(TODO_KEY, todos); return list(); }
-      if (a[0] === 'clear' && a.length === 1) { todos = todos.filter((t) => !t.done); save(TODO_KEY, todos); return list(); }
-      todos.push({ text: rest, done: false, t: Date.now() }); save(TODO_KEY, todos);
+      if (a[0] === 'rm' && a.length === 2) { const i = +a[1] - 1; if (!todos[i]) return warnLine('그 번호가 없어요'); todos.splice(i, 1); saveTodos(); return list(); }
+      if (a[0] === 'clear' && a.length === 1) { todos = todos.filter((t) => !t.done); saveTodos(); return list(); }
+      todos.push({ text: rest, done: false, t: Date.now() }); saveTodos();
       return `<span class="ok">✓</span> ${todos.length}번에 추가: ${esc(rest)}`;
     },
-    done: (a) => { const i = +a[0] - 1; if (!todos[i]) return usage('done'); todos[i].done = !todos[i].done; save(TODO_KEY, todos); return todos[i].done ? `<span class="ok">✓</span> 끝: ${esc(todos[i].text)}  <span class="muted">남은 할 일 ${todos.filter((x) => !x.done).length}개</span>` : `되돌렸어요: ${esc(todos[i].text)}`; },
+    done: (a) => { const i = +a[0] - 1; if (!todos[i]) return usage('done'); todos[i].done = !todos[i].done; saveTodos(); return todos[i].done ? `<span class="ok">✓</span> 끝: ${esc(todos[i].text)}  <span class="muted">남은 할 일 ${todos.filter((x) => !x.done).length}개</span>` : `되돌렸어요: ${esc(todos[i].text)}`; },
     memo: (a, rest) => {
       const list = () => (memos.length ? memos.map((m, i) => `${i + 1}  ${esc(m.text)}  <span class="muted">${md(ymd(m.t))} ${hmOf(m.t)}</span>`).join('\n') : '<span class="muted">메모가 없어요. memo &lt;내용&gt;으로 적어요</span>');
       if (!a.length) return list();
-      if (a[0] === 'rm' && a.length === 2) { const i = +a[1] - 1; if (!memos[i]) return warnLine('그 번호가 없어요'); memos.splice(i, 1); save(MEMO_KEY, memos); return list(); }
-      if (a[0] === 'clear' && a.length === 1) { const n = memos.length; memos = []; save(MEMO_KEY, memos); return `<span class="ok">✓</span> 메모 ${n}개를 지웠어요`; }
-      memos.unshift({ text: rest, t: Date.now() }); save(MEMO_KEY, memos);
+      if (a[0] === 'rm' && a.length === 2) { const i = +a[1] - 1; if (!memos[i]) return warnLine('그 번호가 없어요'); memos.splice(i, 1); saveMemos(); return list(); }
+      if (a[0] === 'clear' && a.length === 1) { const n = memos.length; memos = []; saveMemos(); return `<span class="ok">✓</span> 메모 ${n}개를 지웠어요`; }
+      memos.unshift({ text: rest, t: Date.now() }); saveMemos();
       return `<span class="ok">✓</span> 적었어요  <span class="muted">memo로 목록</span>`;
     },
     calc: (a, rest) => { if (!rest) return usage('calc'); try { return `${esc(rest)} = <b>${Tools.fmt(Tools.calc(rest))}</b>`; } catch (err) { return warnLine(`calc: ${esc(err.message)}`); } },
@@ -1052,6 +1065,7 @@
     const from = `${ymd()}T00:00:00+09:00`, to = `${ymd(Date.now() + 2 * DAY)}T00:00:00+09:00`;
     try { S.events = (await Auth.rest(`events?select=title,emoji,start_at,all_day&start_at=gte.${encodeURIComponent(from)}&start_at=lt.${encodeURIComponent(to)}&order=start_at.asc&limit=50`)) || []; } catch { S.events = []; }
     try { S.ddays = (await Auth.rest('ddays?select=id,title,target,is_main&order=target.asc')) || []; } catch { S.ddays = []; }
+    await syncNotes().catch(() => {});
   }
   // keep: 입력 중인 글을 지우지 않도록 데이터가 바뀌어도 저절로 다시 그리지 않는 칸 (Tools)
   function drawAll() { drawDock(); drawTimeline(); drawDdays(); buildAlerts(); drawGrass(); drawKeyword(); if (open && !PANELS.find((x) => x.id === open)?.keep) refreshBig(); }
@@ -1165,7 +1179,11 @@
     // 분이 바뀌는 순간에 맞춰 다시 그린다 (30초마다 아무 때나 그리면 "지금"이 최대 30초 늦었다)
     const minuteTick = () => setTimeout(() => { drawTimeline(); minuteTick(); }, 60_000 - (Date.now() % 60_000) + 30);
     minuteTick();
-    addEventListener('visibilitychange', () => { if (!document.hidden) drawTimeline(); });
+    addEventListener('visibilitychange', () => {
+      if (document.hidden) return;
+      drawTimeline();
+      syncNotes().then((changed) => { if (!changed) return; drawDock(); if (!stage.contains(document.activeElement) || document.activeElement === document.body) refreshBig(); }).catch(() => {});
+    });
     addEventListener('resize', drawTimeline);
     if (settings.update) setTimeout(() => checkUpdate(false).catch(() => {}), 8000);
   }
