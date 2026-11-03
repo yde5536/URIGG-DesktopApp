@@ -92,7 +92,28 @@
     { id: 'net', title: 'Network', status: () => { const m = lastMs(); return { text: m === undefined ? '—' : m === null ? '끊김' : `${m} ms`, warn: m === null }; }, body: () => netBig() },
     { id: 'programs', title: 'Programs', status: () => ({ text: S.release?.tag || '—' }),
       body: () => `<div class="prog"><img src="brand/logo/emblem-320.webp" alt="" width="56" height="56"><p><b style="font-size:1.375rem">코워크 캘린더</b><span>${esc(S.release?.tag || '최신 버전')} · Windows</span></p><a class="u-btn" href="https://github.com/yde5536/URIGG-ClaudeCalender/releases/latest/download/CoworkCalendar-setup.exe">Windows 다운로드</a><span class="prog__desc">대화로 짠 일정을 위젯·아이폰에 띄우는 캘린더</span></div>` },
+    // 명령어 설명서. 타이머가 돌면 상태 자리에 가장 먼저 끝나는 것의 남은 시간
+    { id: 'cmds', title: 'Commands', status: () => { const n = nextEnd(); return n ? { text: `⏱ ${left(n - Date.now())}` } : { text: `${ALL_DOCS.length}개` }; }, body: () => cmdsBig() },
   ];
+  /* Commands 칸: 왼쪽 챕터별 목록(이름 + 한 줄), 오른쪽 누른 명령어의 사용법·옵션·예시 */
+  const ALL_DOCS = CMD_DOCS.flatMap((c) => c.groups.flatMap((g) => g.cmds.map((d) => ({ ...d, chapter: c.chapter, group: g.name }))));
+  const docOf = (n) => ALL_DOCS.find((d) => d.name === n);
+  let docSel = ALL_DOCS[0].name;
+  function cmdsBig() {
+    return `<div class="cb">
+      <nav class="cb__index" aria-label="명령어 목록">${CMD_DOCS.map((c) => `<section><h3 class="cb__chapter">${esc(c.chapter)}</h3>${c.groups.map((g) => `<p class="cb__group">${esc(g.name)}</p><ul>${g.cmds.map((d) => `<li><button type="button" class="cb__cmd${d.name === docSel ? ' is-on' : ''}" data-doc="${d.name}"><code>${d.name}</code><span>${esc(d.short)}</span></button></li>`).join('')}</ul>`).join('')}</section>`).join('')}</nav>
+      <article class="cb__detail">${docDetail(docOf(docSel))}</article>
+    </div>`;
+  }
+  function docDetail(d) {
+    return `<p class="cb__crumb">${esc(d.chapter)} · ${esc(d.group)}</p>
+      <h3 class="cb__name"><code>${d.name}</code></h3>
+      <p class="cb__short">${esc(d.short)}</p>
+      <h4>사용법</h4><pre class="cb__usage">${d.usage.map(esc).join('\n')}</pre>
+      ${d.opts.length ? `<h4>옵션</h4><dl class="cb__opts">${d.opts.map(([k, v]) => `<div><dt><code>${esc(k)}</code></dt><dd>${esc(v)}</dd></div>`).join('')}</dl>` : ''}
+      ${d.ex.length ? `<h4>예시 <span>누르면 터미널 입력칸에 넣어요</span></h4><div class="cb__ex">${d.ex.map((x) => `<button type="button" data-ex="${esc(x)}"><code>${esc(x)}</code></button>`).join('')}</div>` : ''}
+      ${d.notes.length ? `<h4>참고</h4><ul class="cb__notes">${d.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}`;
+  }
   const ctfLen = (e) => { const h = Math.round((Date.parse(e.finish) - Date.parse(e.start)) / 3_600_000); return h % 24 === 0 ? `${h / 24}일` : `${h}시간`; };
   const curVuln = () => S.vulns.length ? S.vulns[((vulnAt % S.vulns.length) + S.vulns.length) % S.vulns.length] : null;
   function vulnBig() {
@@ -183,6 +204,14 @@
     el.addEventListener('click', (e) => {
       if (e.target.closest('[data-act="vuln-next"]')) stepVuln(1);
       if (e.target.closest('[data-act="vuln-prev"]')) stepVuln(-1);
+      const d = e.target.closest('[data-doc]');
+      if (d) {
+        docSel = d.dataset.doc;
+        el.querySelectorAll('.cb__cmd').forEach((b) => b.classList.toggle('is-on', b === d));
+        const det = el.querySelector('.cb__detail'); det.innerHTML = docDetail(docOf(docSel)); det.scrollTop = 0;
+      }
+      const x = e.target.closest('[data-ex]');
+      if (x) { back(); cmd.value = x.dataset.ex; }
     });
     document.activeElement?.blur?.(); // 터미널 입력칸이 ← → 키를 가져가지 않게
     stage.append(el); stage.classList.add('is-summoned'); btn.classList.add('is-away'); open = id;
@@ -292,7 +321,77 @@
     $('#kw-term').textContent = k?.[0] || '—'; $('#kw-name').textContent = k?.[1] || ''; $('#kw-desc').textContent = k?.[2] || '';
   }
 
-  /* ── 터미널 (명령어는 아직 정하는 중) ── */
+  /* ── 카드 알림: 가운데 칸 아래쪽에 한 장씩 올라온다. 소리는 내지 않는다. 닫을 때까지 남는다 ── */
+  const toastsEl = $('#toasts');
+  const hmOf = (t) => { const k = kst(t); return `${two(k.getUTCHours())}:${two(k.getUTCMinutes())}`; };
+  function toast({ kind, title, text = '', snooze }) {
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.setAttribute('role', 'status');
+    el.innerHTML = `<p class="toast__head"><span>${esc(kind)}</span><time>${hmOf(Date.now())}</time></p><p class="toast__title">${esc(title)}</p>${text ? `<p class="toast__text">${esc(text)}</p>` : ''}<p class="toast__acts">${snooze ? '<button type="button" class="u-btn-ghost" data-t="snooze">+5분</button>' : ''}<button type="button" class="u-btn-ghost" data-t="close">닫기</button></p>`;
+    el.addEventListener('click', (e) => { const b = e.target.closest('[data-t]'); if (!b) return; if (b.dataset.t === 'snooze') snooze(); dismiss(el); });
+    toastsEl.append(el);
+    while (toastsEl.children.length > 4) toastsEl.firstElementChild.remove();
+    if (!reduced) el.animate([{ transform: 'translateY(28px) scale(0.96)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 380, easing: 'cubic-bezier(0.2, 0.9, 0.25, 1)' });
+  }
+  function dismiss(el) {
+    if (reduced) return el.remove();
+    el.animate([{ opacity: 1 }, { opacity: 0, transform: 'translateY(14px) scale(0.98)' }], { duration: 200, fill: 'forwards' }).onfinish = () => el.remove();
+  }
+
+  /* ── 타이머 · 알람 · 뽀모도로 · 공부 시간 · 메모 · 할 일 (이 PC에만 저장) ── */
+  const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
+  const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+  const TM_KEY = 'urigg-hub-timers', PO_KEY = 'urigg-hub-pomo', ST_KEY = 'urigg-hub-study', MEMO_KEY = 'urigg-hub-memo', TODO_KEY = 'urigg-hub-todo';
+  let timers = load(TM_KEY, []); // { kind: 'timer'|'alarm', end, label, ms, study }
+  let pomo = load(PO_KEY, null); // { focus, rest, total, round, phase: 'focus'|'rest', end }
+  const study = load(ST_KEY, { days: {}, running: null });
+  let memos = load(MEMO_KEY, []), todos = load(TODO_KEY, []);
+  const left = (ms) => { const s = Math.max(0, Math.ceil(ms / 1000)), h = Math.floor(s / 3600); return h ? `${h}:${two(Math.floor(s / 60) % 60)}:${two(s % 60)}` : `${two(Math.floor(s / 60))}:${two(s % 60)}`; };
+  const fmtMin = (m) => { m = Math.round(m); const h = Math.floor(m / 60); return h ? `${h}시간${m % 60 ? ` ${m % 60}분` : ''}` : `${m}분`; };
+  const fmtDur = (ms) => (ms < 60_000 ? `${Math.round(ms / 1000)}초` : fmtMin(ms / 60_000));
+  // 알람은 몇 시간 뒤일 수 있어 빼고, 타이머와 뽀모도로만
+  const nextEnd = () => { const v = Math.min(...timers.filter((t) => t.kind === 'timer').map((t) => t.end), pomo ? pomo.end : Infinity); return Number.isFinite(v) ? v : null; };
+  const addStudy = (min, day = ymd()) => { study.days[day] = Math.max(0, (study.days[day] || 0) + min); save(ST_KEY, study); };
+  function addTimer(ms, label = '', kind = 'timer', asStudy = false, end = Date.now() + ms) {
+    timers.push({ kind, end, label, ms, study: asStudy }); timers.sort((a, b) => a.end - b.end); save(TM_KEY, timers); drawDock();
+  }
+  function pomoStep(now) {
+    const late = now - pomo.end > 120_000; // 허브가 꺼져 있던 사이에 지난 것
+    if (pomo.phase === 'focus') {
+      addStudy(pomo.focus, ymd(pomo.end));
+      if (late) { toast({ kind: '뽀모도로', title: '허브가 꺼져 있는 동안 멈췄어요', text: `집중 ${pomo.round}/${pomo.total}까지 공부 시간에 더했어요` }); pomo = null; }
+      else if (pomo.round >= pomo.total) { toast({ kind: '뽀모도로', title: `집중 ${pomo.total}번 모두 끝`, text: `${fmtMin(pomo.focus * pomo.total)}을 공부 시간에 더했어요` }); pomo = null; }
+      else { pomo.phase = 'rest'; pomo.end += pomo.rest * 60_000; toast({ kind: '뽀모도로', title: `집중 ${pomo.round}/${pomo.total} 끝`, text: `${pomo.rest}분 쉬어요` }); }
+    } else if (late) { toast({ kind: '뽀모도로', title: '허브가 꺼져 있는 동안 멈췄어요', text: `집중 ${pomo.round}/${pomo.total}까지 했어요` }); pomo = null; }
+    else { pomo.round++; pomo.phase = 'focus'; pomo.end += pomo.focus * 60_000; toast({ kind: '뽀모도로', title: `휴식 끝 · 집중 ${pomo.round}/${pomo.total}`, text: `${pomo.focus}분 집중해요` }); }
+    save(PO_KEY, pomo);
+  }
+  let ticking = false;
+  function tickTimers() {
+    const now = Date.now(), due = timers.filter((t) => t.end <= now);
+    if (due.length) {
+      timers = timers.filter((t) => t.end > now); save(TM_KEY, timers);
+      for (const t of due) {
+        const late = now - t.end > 90_000 ? `허브가 꺼져 있어서 ${fmtDur(now - t.end)} 늦게 알려요` : '';
+        if (t.study) addStudy(t.ms / 60_000, ymd(t.end));
+        const again = () => addTimer(5 * 60_000, t.label);
+        if (t.kind === 'alarm') toast({ kind: '알람', title: t.label || `${hmOf(t.end)} 알람`, text: late || `${hmOf(t.end)}이에요`, snooze: again });
+        else toast({ kind: '타이머', title: `${t.label || fmtDur(t.ms)} 끝`, text: late || (t.label ? `${fmtDur(t.ms)} 타이머` : '') + (t.study ? ' · 공부 시간에 더했어요' : ''), snooze: again });
+      }
+    }
+    if (pomo && pomo.end <= now) pomoStep(now);
+    const running = !!nextEnd();
+    if (running || ticking) drawDock(); // 사이드바 Commands 옆 남은 시간
+    ticking = running;
+  }
+  setInterval(tickTimers, 1000);
+  const kv = (rows) => `<span class="kv">${rows.map(([k, v]) => `<span class="kv__k">${k}</span><span>${v}</span>`).join('')}</span>`;
+  const opts = (rest, names) => { const on = {}; let r = rest; for (;;) { const m = r.match(/^(-[a-z]+)(?:\s+|$)/i); if (!m || !names.includes(m[1])) break; on[m[1]] = true; r = r.slice(m[0].length); } return [on, r]; };
+  const usage = (name) => `<span class="warn">사용법:</span> ${docOf(name).usage.map(esc).join('  ·  ')}  <span class="muted">(help ${name})</span>`;
+  const warnLine = (s) => `<span class="warn">${s}</span>`;
+
+  /* ── 터미널 ── */
   const body = $('#term-body');
   const PS1 = '<span class="ps1"><b>urigg@hub</b>:<em>~</em>$</span>';
   const inputRow = document.createElement('p');
@@ -301,11 +400,18 @@
   const hint = document.createElement('p');
   hint.className = 'hint';
   hint.textContent = 'help 명령 목록 · open <칸> 크게 보기 · Tab 자동 완성 · ↑↓ 이전 명령 · Esc 터미널로';
-  const termLine = (html, cls = '') => { const p = document.createElement('p'); if (cls) p.className = cls; p.innerHTML = html; inputRow.before(p); body.scrollTop = body.scrollHeight; };
+  const termLine = (html, cls = '') => { const p = document.createElement('p'); if (cls) p.className = cls; p.innerHTML = html; inputRow.before(p); body.scrollTop = body.scrollHeight; return p; };
   const IDS = PANELS.map((p) => p.id);
   const nextEvent = () => { const now = Date.now(); return S.events.filter((e) => !e.all_day && Date.parse(e.start_at) > now)[0]; };
   const CMDS = {
-    help: () => [`open <칸>      칸을 가운데로   (${IDS.join(' · ')})`, 'fetch          오늘 요약', 'today          오늘 일정', 'dday           D-day 목록   dday add <이름> <YYYY-MM-DD>', 'kw · ip · ping · lock · clear'].join('\n'),
+    help: (a) => {
+      if (a[0]) {
+        const d = docOf(a[0]);
+        if (!d) return warnLine(`help: 모르는 명령어 '${esc(a[0])}'`);
+        return `<b>${d.name}</b>  <span class="muted">${esc(d.chapter)} · ${esc(d.group)}</span>\n${esc(d.short)}\n\n<span class="ok">사용법</span>\n${d.usage.map((u) => `  ${esc(u)}`).join('\n')}${d.opts.length ? `\n\n<span class="ok">옵션</span>${kv(d.opts.map(([k, v]) => [esc(k), esc(v)]))}` : ''}${d.ex.length ? `\n<span class="ok">예시</span>\n${d.ex.map((x) => `  ${esc(x)}`).join('\n')}` : ''}${d.notes.length ? `\n\n${d.notes.map((n) => `<span class="muted">· ${esc(n)}</span>`).join('\n')}` : ''}`;
+      }
+      return CMD_DOCS.map((c) => `<span class="ok">${esc(c.chapter)}</span>\n${kv(c.groups.map((g) => [esc(g.name), g.cmds.map((d) => d.name).join('  ')]))}`).join('') + '<span class="muted">help &lt;명령어&gt; 자세히 · open cmds 설명서 칸</span>';
+    },
     fetch: () => {
       const nx = nextEvent(), m = mainDd(), nk = newKev();
       let left = ''; if (nx) { const d = Math.round((Date.parse(nx.start_at) - Date.now()) / 60000); left = d >= 60 ? `${Math.floor(d / 60)}시간 ${d % 60}분 뒤` : `${d}분 뒤`; }
@@ -318,6 +424,9 @@
         row('CTF', `${S.ctf.length}개 예정 · <span class="ok">초보 ${S.ctf.filter((e) => e.beginner).length}</span>`),
         row('키워드', esc(S.keywords.length ? S.keywords[kstDay(Date.now()) % S.keywords.length][0] : '—')),
         row('네트워크', `${esc(S.net?.ip || '—')}${lastMs() ? ` · ${lastMs()} ms` : ''}`),
+        ...(todos.some((x) => !x.done) ? [row('할 일', `${todos.filter((x) => !x.done).length}개 남음 · ${esc(todos.find((x) => !x.done).text)}`)] : []),
+        ...(nextEnd() ? [row('타이머', `${left(nextEnd() - Date.now())} 남음`)] : []),
+        ...(study.days[ymd()] ? [row('공부', fmtMin(study.days[ymd()]))] : []),
       ].join('')}</div></div>`;
     },
     today: () => { const today = ymd(), ev = S.events.filter((e) => ymd(Date.parse(e.start_at)) === today); return ev.length ? ev.map((e) => `${e.all_day ? ' 종일' : hm(e.start_at)}  ${esc(e.title)}`).join('\n') : (S.loggedIn ? '오늘 일정이 없어요' : '<span class="muted">로그인이 필요해요</span>'); },
@@ -330,7 +439,11 @@
       }
       return S.ddays.length ? [...S.ddays].sort((x, y) => x.target.localeCompare(y.target)).map((d) => `${ddLabel(daysTo(d.target)).padEnd(6)}  ${esc(d.title)}${d.is_main ? ' · 메인' : ''}  <span class="muted">${d.target}</span>`).join('\n') : 'D-day가 없어요';
     },
-    kw: () => { const k = S.keywords[kstDay(Date.now()) % (S.keywords.length || 1)]; return k ? `<b>${esc(k[0])}</b>  <span class="muted">${esc(k[1])}</span>\n${esc(k[2])}` : '—'; },
+    kw: (a, rest) => {
+      const show = (k) => `<b>${esc(k[0])}</b>  <span class="muted">${esc(k[1])}</span>\n${esc(k[2])}`;
+      if (rest) { const q = rest.toLowerCase(), hit = S.keywords.filter((k) => k.join(' ').toLowerCase().includes(q)); return hit.length ? hit.slice(0, 6).map(show).join('\n\n') : `키워드 사전에 '${esc(rest)}'가 없어요`; }
+      const k = S.keywords[kstDay(Date.now()) % (S.keywords.length || 1)]; return k ? show(k) : '—';
+    },
     ip: () => `${esc(S.net?.ip || '—')}  <span class="muted">${esc(S.net?.isp || '')}</span>`,
     ping: () => { const m = lastMs(); return m == null ? '아직 잰 값이 없어요' : `cloudflare  ${m} ms`; },
     open: (a) => {
@@ -342,14 +455,208 @@
     },
     lock: () => { setTimeout(lock, 150); return '<span class="muted">잠그는 중…</span>'; },
     clear: () => { body.querySelectorAll('p:not(.term__input):not(.hint), .ff').forEach((p) => p.remove()); return null; },
+
+    /* 일상: 시간 · 공부 */
+    timer: (a) => {
+      const own = timers.filter((t) => t.kind === 'timer');
+      if (!a.length) return own.length ? own.map((t, i) => `${i + 1}  <b>${left(t.end - Date.now())}</b> 남음  ${esc(t.label || '')}  <span class="muted">${fmtDur(t.ms)}${t.study ? ' · 공부' : ''}</span>`).join('\n') : '<span class="muted">돌아가는 타이머가 없어요</span>';
+      if (a[0] === 'stop') { timers = timers.filter((t) => t.kind !== 'timer'); save(TM_KEY, timers); drawDock(); return `<span class="ok">✓</span> 타이머 ${own.length}개를 껐어요`; }
+      if (a[0] === 'rm') { const t = own[+a[1] - 1]; if (!t) return warnLine('그 번호의 타이머가 없어요 (timer로 확인)'); timers = timers.filter((x) => x !== t); save(TM_KEY, timers); drawDock(); return `<span class="ok">✓</span> 껐어요: ${esc(t.label || fmtDur(t.ms))}`; }
+      const ms = Tools.duration(a[0]);
+      if (!ms || ms > 24 * 3_600_000) return usage('timer');
+      const asStudy = a.includes('-s'), label = a.slice(1).filter((x) => x !== '-s').join(' ');
+      addTimer(ms, label, 'timer', asStudy);
+      return `<span class="ok">✓</span> ${fmtDur(ms)} 타이머${label ? ` · ${esc(label)}` : ''}  <span class="muted">${hmOf(Date.now() + ms)}에 카드로 알려요${asStudy ? ' · 공부 시간에 더해요' : ''}</span>`;
+    },
+    alarm: (a) => {
+      const own = timers.filter((t) => t.kind === 'alarm');
+      if (!a.length) return own.length ? own.map((t, i) => `${i + 1}  <b>${hmOf(t.end)}</b>${ymd(t.end) !== ymd() ? ' <span class="muted">내일</span>' : ''}  ${esc(t.label || '')}`).join('\n') : '<span class="muted">맞춰 둔 알람이 없어요</span>';
+      if (a[0] === 'stop') { timers = timers.filter((t) => t.kind !== 'alarm'); save(TM_KEY, timers); drawDock(); return `<span class="ok">✓</span> 알람 ${own.length}개를 껐어요`; }
+      if (a[0] === 'rm') { const t = own[+a[1] - 1]; if (!t) return warnLine('그 번호의 알람이 없어요 (alarm으로 확인)'); timers = timers.filter((x) => x !== t); save(TM_KEY, timers); drawDock(); return `<span class="ok">✓</span> 껐어요: ${hmOf(t.end)} ${esc(t.label || '')}`; }
+      const m = a[0].match(/^(\d{1,2}):(\d{2})$/);
+      if (!m || +m[1] > 23 || +m[2] > 59) return usage('alarm');
+      let end = Date.parse(`${ymd()}T${two(+m[1])}:${m[2]}:00+09:00`);
+      if (end <= Date.now()) end += DAY;
+      const label = a.slice(1).join(' ');
+      addTimer(end - Date.now(), label, 'alarm', false, end);
+      return `<span class="ok">✓</span> ${ymd(end) !== ymd() ? '내일 ' : ''}${hmOf(end)} 알람${label ? ` · ${esc(label)}` : ''}  <span class="muted">${fmtDur(end - Date.now())} 뒤</span>`;
+    },
+    pomo: (a) => {
+      if (a[0] === 'stop') { if (!pomo) return '<span class="muted">돌아가는 뽀모도로가 없어요</span>'; const r = pomo.round - (pomo.phase === 'focus' ? 1 : 0); pomo = null; save(PO_KEY, null); drawDock(); return `<span class="ok">✓</span> 뽀모도로를 멈췄어요${r ? `  <span class="muted">마친 집중 ${r}번은 공부 시간에 남아요</span>` : ''}`; }
+      if (pomo && !a.length) return `${pomo.phase === 'focus' ? '<b>집중</b>' : '<b>휴식</b>'} ${pomo.round}/${pomo.total}  ${left(pomo.end - Date.now())} 남음  <span class="muted">${pomo.focus}분 집중 · ${pomo.rest}분 휴식 · pomo stop으로 멈추기</span>`;
+      if (pomo) return warnLine('이미 돌아가는 중이에요. pomo stop으로 멈춘 다음 다시 시작하세요');
+      const [f = 25, r = 5, n = 4] = a.map(Number);
+      if (![f, r, n].every((x) => Number.isInteger(x) && x > 0) || f > 180 || r > 60 || n > 12) return usage('pomo');
+      pomo = { focus: f, rest: r, total: n, round: 1, phase: 'focus', end: Date.now() + f * 60_000 };
+      save(PO_KEY, pomo); drawDock();
+      return `<span class="ok">✓</span> 뽀모도로 시작: ${f}분 집중 · ${r}분 휴식 × ${n}  <span class="muted">바뀔 때마다 카드로 알려요</span>`;
+    },
+    study: (a) => {
+      if (a[0] === 'start') { if (study.running) return warnLine(`이미 재는 중이에요 (${esc(study.running.label || '공부')}). study stop으로 멈추세요`); study.running = { t0: Date.now(), label: a.slice(1).join(' ') }; save(ST_KEY, study); return `<span class="ok">✓</span> 재기 시작${study.running.label ? `: ${esc(study.running.label)}` : ''}  <span class="muted">study stop으로 멈춰요</span>`; }
+      if (a[0] === 'stop') { if (!study.running) return '<span class="muted">재고 있는 게 없어요</span>'; const min = (Date.now() - study.running.t0) / 60_000; study.running = null; addStudy(min); return `<span class="ok">✓</span> ${fmtMin(min)} 더했어요 · 오늘 ${fmtMin(study.days[ymd()] || 0)}`; }
+      if (a[0] === 'add') { const n = Number(a[1]); if (!Number.isFinite(n) || !n) return usage('study'); addStudy(n); return `<span class="ok">✓</span> ${n > 0 ? '더했어요' : '뺐어요'} · 오늘 ${fmtMin(study.days[ymd()] || 0)}`; }
+      if (a.length) return usage('study');
+      const t = kst(), mon = (t.getUTCDay() + 6) % 7, run = study.running ? (Date.now() - study.running.t0) / 60_000 : 0;
+      const day = (i) => ymd(Date.now() - i * DAY), mins = (i) => (study.days[day(i)] || 0) + (i === 0 ? run : 0);
+      const week = [...Array(mon + 1)].reduce((s, _, i) => s + mins(i), 0);
+      const last7 = [6, 5, 4, 3, 2, 1, 0].map((i) => [WEEK[kst(Date.now() - i * DAY).getUTCDay()], mins(i)]), top = Math.max(60, ...last7.map((x) => x[1]));
+      return kv([
+        ['오늘', `<b>${fmtMin(mins(0))}</b>${study.running ? ` <span class="muted">(재는 중${study.running.label ? `: ${esc(study.running.label)}` : ''} ${left(run * 60_000)})</span>` : ''}`],
+        ['이번 주', fmtMin(week)],
+        ['최근 7일', last7.map(([w, m]) => `${w} <span class="bar">${'█'.repeat(Math.round((m / top) * 14)) || '·'}</span> <span class="muted">${fmtMin(m)}</span>`).join('\n')],
+      ]);
+    },
+
+    /* 일상: 메모 · 할 일 · 계산 */
+    todo: (a, rest) => {
+      const list = () => (todos.length ? todos.map((t, i) => `${i + 1}  ${t.done ? '<span class="ok">✓</span>' : '□'}  ${t.done ? `<span class="muted">${esc(t.text)}</span>` : esc(t.text)}`).join('\n') : '<span class="muted">할 일이 없어요. todo &lt;내용&gt;으로 추가해요</span>');
+      if (!a.length) return list();
+      if (a[0] === 'rm' && a.length === 2) { const i = +a[1] - 1; if (!todos[i]) return warnLine('그 번호가 없어요'); todos.splice(i, 1); save(TODO_KEY, todos); return list(); }
+      if (a[0] === 'clear' && a.length === 1) { todos = todos.filter((t) => !t.done); save(TODO_KEY, todos); return list(); }
+      todos.push({ text: rest, done: false, t: Date.now() }); save(TODO_KEY, todos);
+      return `<span class="ok">✓</span> ${todos.length}번에 추가: ${esc(rest)}`;
+    },
+    done: (a) => { const i = +a[0] - 1; if (!todos[i]) return usage('done'); todos[i].done = !todos[i].done; save(TODO_KEY, todos); return todos[i].done ? `<span class="ok">✓</span> 끝: ${esc(todos[i].text)}  <span class="muted">남은 할 일 ${todos.filter((x) => !x.done).length}개</span>` : `되돌렸어요: ${esc(todos[i].text)}`; },
+    memo: (a, rest) => {
+      const list = () => (memos.length ? memos.map((m, i) => `${i + 1}  ${esc(m.text)}  <span class="muted">${md(ymd(m.t))} ${hmOf(m.t)}</span>`).join('\n') : '<span class="muted">메모가 없어요. memo &lt;내용&gt;으로 적어요</span>');
+      if (!a.length) return list();
+      if (a[0] === 'rm' && a.length === 2) { const i = +a[1] - 1; if (!memos[i]) return warnLine('그 번호가 없어요'); memos.splice(i, 1); save(MEMO_KEY, memos); return list(); }
+      if (a[0] === 'clear' && a.length === 1) { const n = memos.length; memos = []; save(MEMO_KEY, memos); return `<span class="ok">✓</span> 메모 ${n}개를 지웠어요`; }
+      memos.unshift({ text: rest, t: Date.now() }); save(MEMO_KEY, memos);
+      return `<span class="ok">✓</span> 적었어요  <span class="muted">memo로 목록</span>`;
+    },
+    calc: (a, rest) => { if (!rest) return usage('calc'); try { return `${esc(rest)} = <b>${Tools.fmt(Tools.calc(rest))}</b>`; } catch (err) { return warnLine(`calc: ${esc(err.message)}`); } },
+
+    /* 보안 공부: 인코딩 */
+    b64: (a, rest) => {
+      const [o, s] = opts(rest, ['-d', '-u']);
+      if (!s) return usage('b64');
+      if (!o['-d']) return esc(Tools.b64enc(s, o['-u']));
+      const u = Tools.b64bytes(s); if (!u) return warnLine('Base64가 아니에요');
+      const t = Tools.text(u); return t != null ? esc(t) : `<span class="muted">글자가 아니라 16진수로 보여요</span>\n${Tools.hexOf(u)}`;
+    },
+    url: (a, rest) => {
+      const [o, s] = opts(rest, ['-d', '-a']);
+      if (!s) return usage('url');
+      if (o['-d']) { try { return esc(decodeURIComponent(s)); } catch { return warnLine('URL 인코딩이 깨져 있어요'); } }
+      return esc(o['-a'] ? Tools.urlAll(s) : encodeURIComponent(s));
+    },
+    hex: (a, rest) => {
+      const [o, s] = opts(rest, ['-d', '-n']);
+      if (!s) return usage('hex');
+      if (o['-n']) { const n = Tools.numBases(s); return n ? kv([['10진', n.dec], ['16진', n.hex], ['2진', n.bin], ['8진', n.oct]]) : warnLine('정수를 넣어 주세요 (255, 0xff, 0b1010)'); }
+      if (o['-d']) { const u = Tools.hexbytes(s); if (!u) return warnLine('16진수가 아니에요 (짝수 자리여야 해요)'); const t = Tools.text(u); return t != null ? esc(t) : warnLine('글자로 풀리지 않아요'); }
+      return Tools.hexOf(Tools.bytes(s)).match(/../g).join(' ');
+    },
+    rot: (a, rest) => {
+      const m = rest.match(/^-n\s+(-?\d+)\s+([\s\S]+)$/);
+      if (m) return esc(Tools.rot(m[2], +m[1]));
+      if (!rest) return usage('rot');
+      return `<b>ROT13</b>  ${esc(Tools.rot(rest, 13))}\n${kv([...Array(25)].map((_, i) => [`+${i + 1}`, esc(Tools.rot(rest, i + 1))]))}`;
+    },
+    decode: (a, rest) => {
+      if (!rest) return usage('decode');
+      const c = Tools.decode(rest);
+      if (!c.some((x) => !x.weak)) return `<span class="muted">알아본 인코딩이 없어요</span>\n<b>ROT13이라면</b>  ${esc(Tools.rot(rest, 13))}`;
+      return kv(c.map((x) => [x.weak ? `<span class="muted">${x.type}</span>` : x.type, `${x.weak ? `<span class="muted">${esc(x.value)}</span>` : `<b>${esc(x.value)}</b>`}${x.note ? `  <span class="muted">${x.note}</span>` : ''}${x.then ? `\n<span class="muted">→ 한 번 더 (${x.then.type})</span>  <b>${esc(x.then.value)}</b>` : ''}`]));
+    },
+
+    /* 보안 공부: 해시 · 토큰 */
+    hash: (a, rest) => {
+      const [o, s] = opts(rest, ['-id']);
+      if (!s) return usage('hash');
+      if (o['-id']) { const k = Tools.hashId(s); return k.length ? `짐작: <b>${k.join(' · ')}</b>  <span class="muted">(${s.trim().length}자, 길이와 앞머리로만 본 것)</span>` : '<span class="muted">알아본 해시 모양이 아니에요</span>'; }
+      return Tools.hashes(s).then((h) => kv(Object.entries(h).map(([k, v]) => [k, v])));
+    },
+    jwt: (a, rest) => {
+      if (!rest) return usage('jwt');
+      const j = Tools.jwt(rest); if (!j) return warnLine('JWT가 아니에요 (점으로 나뉜 세 덩어리, 앞 두 개는 Base64 JSON)');
+      const when = (k) => { const v = j.payload[k]; if (typeof v !== 'number') return null; const t = v * 1000; return `${ymd(t)} ${hmOf(t)}`; };
+      const exp = j.payload.exp;
+      const rows = [['header', `<span class="code">${esc(JSON.stringify(j.header, null, 2))}</span>`], ['payload', `<span class="code">${esc(JSON.stringify(j.payload, null, 2))}</span>`]];
+      if (when('iat')) rows.push(['발급 iat', when('iat')]);
+      if (when('nbf')) rows.push(['시작 nbf', when('nbf')]);
+      if (when('exp')) rows.push(['만료 exp', `${when('exp')}  ${exp * 1000 < Date.now() ? warnLine('만료됨') : `<span class="ok">${fmtDur(exp * 1000 - Date.now())} 남음</span>`}`]);
+      rows.push(['서명', j.sigLen ? `${j.sigLen}자 <span class="muted">(확인 안 함)</span>` : warnLine('없음')]);
+      const alg = String(j.header.alg || '').toLowerCase();
+      return kv(rows) + (alg === 'none' ? warnLine('⚠ alg: none · 서명 없는 토큰이에요. 이걸 받아 주는 서버는 누구나 토큰을 위조할 수 있어요') : '');
+    },
+
+    /* 보안 공부: 네트워크 · 리눅스 */
+    cidr: (a) => {
+      if (!a.length) return usage('cidr');
+      const r = Tools.cidr(a[0], a[1]);
+      if (!r) return usage('cidr');
+      if (r.error) return warnLine(r.error);
+      return kv([['입력', `${esc(r.ip)}/${r.prefix}  <span class="muted">${r.kind}</span>`], ['네트워크', r.net], ['브로드캐스트', r.bc], ['쓸 수 있는 범위', `${r.first} ~ ${r.last}`], ['호스트 수', r.hosts.toLocaleString()], ['서브넷 마스크', `${r.mask}  <span class="muted">${r.bin}</span>`], ['와일드카드', r.wild]]);
+    },
+    chmod: (a) => {
+      const r = a[0] && Tools.chmod(a[0]);
+      if (!r) return usage('chmod');
+      const yes = (b) => (b ? '<span class="ok">✓</span>' : '<span class="muted">·</span>');
+      return `<b>${r.num}</b>  =  <b>${r.sym}</b>${r.mean ? `  <span class="muted">${r.mean}</span>` : ''}\n${kv([['', '읽기 r  쓰기 w  실행 x'], ...r.who.map((w) => [w.who, `  ${yes(w.r)}       ${yes(w.w)}       ${yes(w.x)}${w.special ? `   <span class="warn">${w.special}</span>` : ''}`])])}`;
+    },
+
+    /* 찾기 */
+    find: (a, rest) => {
+      if (!rest) return usage('find');
+      const q = rest.toLowerCase(), has = (...xs) => xs.filter(Boolean).join(' ').toLowerCase().includes(q);
+      const link = (href, s) => `<a href="${esc(href)}">${esc(s)}</a>`;
+      const groups = [
+        ['뉴스', S.news.filter((x) => has(x.title, x.source)).map((x) => `${link(x.link, x.title)} <span class="muted">${esc(x.source)} · ${ago(x.date)}</span>`)],
+        ['KEV', S.kev.filter((v) => has(v.cve, v.vendor, v.product)).map((v) => `${link(`https://nvd.nist.gov/vuln/detail/${v.cve}`, `${v.cve} · ${v.vendor} ${v.product}`)}`)],
+        ['CTF', S.ctf.filter((e) => has(e.title)).map((e) => `${link(e.url, e.title)}${e.beginner ? ' <span class="ok">초보</span>' : ''}`)],
+        ['Vuln', S.vulns.map((v, i) => [v, i]).filter(([v]) => has(v.alias, v.cve, v.target, v.type, v.desc)).map(([v, i]) => `${esc(v.alias)} <span class="muted">${esc(v.cve)} · vuln ${i + 1}</span>`)],
+        ['키워드', S.keywords.filter((k) => has(...k)).map((k) => `${esc(k[0])} <span class="muted">${esc(k[1])}</span>`)],
+        ['메모', memos.filter((m) => has(m.text)).map((m) => `${esc(m.text)} <span class="muted">${md(ymd(m.t))}</span>`)],
+        ['할 일', todos.filter((t) => has(t.text)).map((t) => `${t.done ? '✓ ' : ''}${esc(t.text)}`)],
+      ].filter(([, r]) => r.length);
+      if (!groups.length) return `<span class="muted">'${esc(rest)}'로 찾은 게 없어요</span>`;
+      return groups.map(([k, r]) => `<span class="ok">${k}</span> <span class="muted">${r.length}</span>\n${r.slice(0, 5).map((x) => `  ${x}`).join('\n')}${r.length > 5 ? `\n  <span class="muted">… ${r.length - 5}개 더</span>` : ''}`).join('\n');
+    },
+    cve: (a) => {
+      const m = (a[0] || '').match(/^(?:cve-)?(\d{4}-\d{4,})$/i);
+      if (!m) return usage('cve');
+      const id = `CVE-${m[1]}`, k = S.kev.find((v) => v.cve === id), vi = S.vulns.findIndex((v) => v.cve === id);
+      return kv([
+        ['KEV', k ? `${warnLine('있음')} · ${esc(k.vendor)} ${esc(k.product)} · ${k.added} 추가${k.ransomware ? ' · 랜섬웨어에 쓰임' : ''}` : '<span class="muted">최근 20건에는 없어요</span>'],
+        ['Vuln 해설', vi >= 0 ? `<b>${esc(S.vulns[vi].alias)}</b>  <span class="muted">vuln ${vi + 1} 로 열기</span>` : '<span class="muted">없어요</span>'],
+        ['링크', `<a href="https://nvd.nist.gov/vuln/detail/${id}">NVD ↗</a>  <a href="https://www.cve.org/CVERecord?id=${id}">CVE.org ↗</a>`],
+      ]);
+    },
+    vuln: (a, rest) => {
+      if (!S.vulns.length) return warnLine('취약점 해설을 아직 못 불러왔어요');
+      if (a[0] === 'ls') return S.vulns.map((v, i) => `${String(i + 1).padStart(2)}  ${esc(v.alias)}  <span class="muted">${esc(v.cve)}</span>`).join('\n');
+      let i = -1;
+      if (!rest) i = ((vulnAt % S.vulns.length) + S.vulns.length) % S.vulns.length;
+      else if (/^\d+$/.test(rest)) i = +rest - 1;
+      else { const q = rest.toLowerCase().replace(/^cve-/, ''); i = S.vulns.findIndex((v) => v.cve.toLowerCase().replace(/^cve-/, '') === q); if (i < 0) i = S.vulns.findIndex((v) => `${v.alias} ${v.target}`.toLowerCase().includes(q)); }
+      if (!S.vulns[i]) return warnLine(`'${esc(rest)}'에 맞는 해설이 없어요  <span class="muted">vuln ls로 목록</span>`);
+      vulnAt = i; try { localStorage.setItem('urigg-hub-vuln', String(i)); } catch {}
+      drawDock();
+      if (open === 'vuln') refreshBig(); else setTimeout(() => summon('vuln'), 40);
+      return `<span class="muted">${esc(S.vulns[i].alias)} → 가운데 · ← → 로 넘기기 · Esc로 돌아와요</span>`;
+    },
+    ctf: (a) => {
+      const f = a[0], now = Date.now();
+      const list = S.ctf.filter((e) => (f === 'beginner' ? e.beginner : f === 'week' ? Date.parse(e.start) - now <= 7 * DAY && Date.parse(e.start) > now : f === 'live' ? Date.parse(e.start) <= now : true));
+      if (f && !['beginner', 'week', 'live'].includes(f)) return usage('ctf');
+      if (!list.length) return '<span class="muted">맞는 CTF가 없어요</span>';
+      return list.slice(0, 10).map((e) => { const s = kst(Date.parse(e.start)), live = Date.parse(e.start) <= now; return `${live ? '<span class="ok">진행 중</span>' : `${s.getUTCMonth() + 1}/${s.getUTCDate()} ${hm(e.start)}`}  <a href="${esc(e.url)}">${esc(e.title)}</a>${e.beginner ? ' <span class="ok">초보</span>' : ''}  <span class="muted">${ctfLen(e)}</span>`; }).join('\n');
+    },
+    g: (a, rest) => { if (!rest) return usage('g'); openUrl(`https://www.google.com/search?q=${encodeURIComponent(rest)}`); return `<span class="muted">브라우저에서 검색: ${esc(rest)}</span>`; },
   };
   const history = []; let hAt = 0;
   const exec = (raw) => {
-    const [c, ...a] = raw.trim().split(/\s+/);
+    // a: 띄어쓰기로 나눈 인자 · rest: 명령어 뒤 글자 그대로 (b64, memo처럼 문장을 받는 명령어용)
+    const line = raw.trim(), c = line.split(/\s+/)[0], rest = line.slice(c.length).trim(), a = rest ? rest.split(/\s+/) : [];
     termLine(`${PS1} ${esc(raw)}`);
     if (!c) return;
-    const out = CMDS[c] ? CMDS[c](a) : `<span class="warn">bash: ${esc(c)}: command not found</span>`;
-    if (out) termLine(out);
+    let out;
+    try { out = CMDS[c] ? CMDS[c](a, rest) : `<span class="warn">bash: ${esc(c)}: command not found</span>  <span class="muted">help로 목록</span>`; }
+    catch (err) { out = warnLine(`${esc(c)}: ${esc(err.message)}`); }
+    if (out instanceof Promise) { const p = termLine('<span class="muted">계산하는 중…</span>'); out.then((h) => { p.innerHTML = h; }).catch((err) => { p.innerHTML = warnLine(esc(err.message)); }); }
+    else if (out) termLine(out);
   };
   const t0 = kst();
   body.innerHTML = `<p class="muted">Last login: ${WEEK[t0.getUTCDay()]} ${t0.getUTCMonth() + 1}/${t0.getUTCDate()} ${two(t0.getUTCHours())}:${two(t0.getUTCMinutes())} on hub</p>`;
@@ -361,7 +668,7 @@
     else if (e.key === 'ArrowDown') { e.preventDefault(); hAt = Math.min(history.length, hAt + 1); cmd.value = history[hAt] || ''; }
     else if (e.key === 'Tab') {
       e.preventDefault();
-      const parts = cmd.value.split(' '), last = parts.at(-1), pool = parts.length === 1 ? Object.keys(CMDS) : parts[0] === 'open' ? IDS : [];
+      const parts = cmd.value.split(' '), last = parts.at(-1), pool = parts.length === 1 ? Object.keys(CMDS) : parts[0] === 'open' ? IDS : parts[0] === 'help' ? ALL_DOCS.map((d) => d.name) : [];
       const hit = pool.filter((x) => x.startsWith(last));
       if (hit.length === 1) { parts[parts.length - 1] = hit[0]; cmd.value = parts.join(' ') + ' '; } else if (hit.length > 1) termLine(hit.join('  '), 'muted');
     }
@@ -445,7 +752,7 @@
 
   /* ── 단축키 ── */
   addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { if (!$('#settings').hidden) $('#settings').hidden = true; else back(); }
+    if (e.key === 'Escape') { if (!$('#settings').hidden) $('#settings').hidden = true; else if (open) back(); else if (toastsEl.lastElementChild) dismiss(toastsEl.lastElementChild); }
     if (open === 'vuln' && (e.key === 'ArrowRight' || e.key === 'ArrowLeft') && !e.target.closest('input, textarea, select')) { e.preventDefault(); stepVuln(e.key === 'ArrowRight' ? 1 : -1); }
     if (e.ctrlKey && e.key.toLowerCase() === 'l') { e.preventDefault(); lock(); }
     if (e.ctrlKey && e.key === ',') { e.preventDefault(); if (lockEl.hidden) $('#settings').hidden = false; }

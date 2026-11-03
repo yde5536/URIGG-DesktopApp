@@ -17,7 +17,7 @@ The **허브 (hub)**: a Windows desktop app titled "Security.log HUB" for the us
 
 - `ui/hub.css` started as the mockup's CSS; `ui/app.css` adds app-only bits. `ui/js/app.js` holds the screen; its `PANELS` list drives the sidebar, `open <id>`, Tab completion and the fly-in animation — add a panel by adding one entry.
 - **Manual sync**: `npm run sync` copies the shared-file list in `scripts/sync.mjs` (brand tokens/components/logos, keywords.json, vulns.json, the calendar widget) from `../URIGG-WebSite` and `../URIGG-Brand`. Remove a file from the list to let the hub own it. The user asks "앱 동기화해 줘"; show the diff, then release.
-- Terminal commands are placeholders; the user will decide the real set later.
+- Terminal commands (v0.1.5, chosen by the user 2026-11-03) in three chapters: 일상 (timer, alarm, pomo, study, todo/done, memo, calc + today, dday, fetch, open, help, clear, lock), 보안 공부 (b64, url, hex, rot, decode, hash, jwt, cidr, chmod, ip, ping), 찾기 (find, cve, vuln, ctf, kw, g). Pure helpers in `ui/js/tools.js` (no eval, MD5 hand-written), help text in `ui/js/cmd-docs.js` (a new command needs an entry there too), wiring in app.js. Commands tab (sidebar, `open cmds`) lists chapters with one-line descriptions; clicking shows usage/options/examples; clicking an example fills the terminal input. Timers/alarms/pomodoro end with a **silent glass card** rising in the centre stage (user asked: card in the terminal, no sound); `+5분` snooze, Esc dismisses. Timers, study time, memos, todos live in localStorage on this PC only. Offered but not built: alarm sound, Windows notifications, quiz/man/port/cheat, courier tracking (user declined).
 
 ## Build and release
 

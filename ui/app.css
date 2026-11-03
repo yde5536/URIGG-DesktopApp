@@ -62,3 +62,51 @@ html { scrollbar-width: thin; scrollbar-color: rgb(255 255 255 / 0.22) transpare
 
 /* 알림 제목 옆 빨간 원: 제목 줄이 baseline 정렬이라 아래로 처졌다. 글자 높이 가운데에 맞춘다 */
 .below__title .count { align-self: center; }
+
+/* 터미널 출력: 긴 해시·토큰은 줄을 넘겨 감싸고, 키-값은 두 줄 표로 */
+.term__body p { overflow-wrap: anywhere; }
+.term__body a { text-decoration: underline 1px rgb(255 255 255 / 0.25); text-underline-offset: 3px; }
+.kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); column-gap: 1.6em; }
+.kv__k { color: var(--hue); }
+.term__body .bar { color: var(--hue); letter-spacing: -0.05em; }
+.term__body .code { display: block; color: var(--u-ink); }
+
+/* 카드 알림: 가운데 칸 오른쪽 아래에서 올라오는 유리 카드 (소리 없음) */
+.toasts { position: absolute; right: 18px; bottom: 18px; z-index: 5; display: grid; gap: 10px; width: min(340px, calc(100% - 36px)); pointer-events: none; }
+.toast { pointer-events: auto; display: grid; gap: 4px; padding: 14px 16px 12px; border-radius: 12px; background: rgb(24 26 34 / 0.78); -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%); box-shadow: var(--u-glass-edge), 0 18px 40px -16px rgb(0 0 0 / 0.75); } /* taste-skill-ignore: 떠 있는 카드 */
+.toast__head { display: flex; justify-content: space-between; color: var(--hue); font-size: 0.75rem; font-weight: 600; }
+.toast__head time { color: var(--u-muted); font-weight: 400; font-variant-numeric: tabular-nums; }
+.toast__title { font-size: var(--u-step-body); font-weight: 600; letter-spacing: -0.01em; }
+.toast__text { color: var(--u-muted); font-size: var(--u-step-small); }
+.toast__acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
+.toast__acts button { padding: 4px 12px; font-size: 0.75rem; }
+
+/* Commands 칸: 왼쪽 목록, 오른쪽 자세히 */
+.cb { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 32px; height: 100%; min-height: 0; }
+.cb__index, .cb__detail { min-height: 0; overflow: auto; padding-right: 8px; scrollbar-width: thin; scrollbar-color: rgb(255 255 255 / 0.2) transparent; }
+.cb__index section + section { margin-top: 18px; }
+.cb__chapter { font-size: var(--u-step-lead); font-weight: 600; letter-spacing: -0.02em; margin-bottom: 4px; }
+.cb__group { margin: 10px 0 4px; color: var(--u-muted); font-size: 0.75rem; }
+.cb__cmd { width: 100%; display: grid; grid-template-columns: 5.2em minmax(0, 1fr); gap: 10px; align-items: baseline; padding: 6px 10px; border: 0; border-radius: 8px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: background-color var(--u-dur-quick); }
+.cb__cmd:hover { background: rgb(255 255 255 / 0.06); }
+.cb__cmd.is-on { background: rgb(255 255 255 / 0.1); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.12); } /* taste-skill-ignore: 고른 명령어 */
+.cb__cmd code { font-family: var(--u-mono); font-size: 0.875rem; color: var(--hue); }
+.cb__cmd span { font-size: var(--u-step-small); color: var(--u-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cb__cmd.is-on span { color: var(--u-ink); }
+.cb__crumb { color: var(--u-muted); font-size: 0.75rem; }
+.cb__name code { font-family: var(--u-mono); font-size: 2rem; font-weight: 500; color: var(--hue); }
+.cb__short { margin-top: 2px; font-size: var(--u-step-body); }
+.cb__detail h4 { margin: 20px 0 8px; font-size: var(--u-step-small); font-weight: 600; color: var(--u-muted); }
+.cb__detail h4 span { margin-left: 6px; font-weight: 400; font-size: 0.75rem; opacity: 0.8; }
+.cb__usage { margin: 0; padding: 10px 14px; border-radius: 8px; background: rgb(0 0 0 / 0.35); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08); font-family: var(--u-mono); font-size: 0.875rem; line-height: 1.7; white-space: pre-wrap; }
+.cb__opts { display: grid; gap: 8px; margin: 0; font-size: var(--u-step-small); }
+.cb__opts div { display: grid; grid-template-columns: minmax(6em, max-content) minmax(0, 1fr); gap: 14px; align-items: baseline; }
+.cb__opts code { font-family: var(--u-mono); font-size: 0.8125rem; color: var(--hue); }
+.cb__opts dd { margin: 0; }
+.cb__ex { display: flex; flex-wrap: wrap; gap: 8px; }
+.cb__ex button { padding: 6px 12px; border: 0; border-radius: 8px; background: rgb(255 255 255 / 0.06); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08); color: var(--u-ink); cursor: pointer; transition: background-color var(--u-dur-quick); }
+.cb__ex button:hover { background: rgb(255 255 255 / 0.12); }
+.cb__ex code { font-family: var(--u-mono); font-size: 0.8125rem; }
+.cb__notes { display: grid; gap: 6px; padding-left: 1.1em; list-style: disc; color: var(--u-muted); font-size: var(--u-step-small); line-height: 1.6; }
+.cb__ex button { max-width: 100%; text-align: left; }
+.cb__ex code { overflow-wrap: anywhere; }
