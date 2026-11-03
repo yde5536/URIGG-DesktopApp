@@ -33,7 +33,7 @@ The **허브 (hub)**: a Windows desktop app titled "Security.log HUB" for the us
 
 - Not yet confirmed by the user in the real app: auto-update from an installed version, the System tab (only testable inside Tauri), Weather location (IP lookup gave "Naju"; the user can type a city in the tab).
 - Daily-life tab ideas offered, waiting for the user to choose: Week (calendar Mon–Sun), Study (pomo/study records), Habit (daily check + streak grass), Travel (Japan trip on 1/18: yen rate, Tokyo weather, packing list), Rate (FX), Money (spending log, monthly budget), Subs (subscription due dates), YouTube (channel RSS, no key), Journal (one line a day), Sleep. Claude recommended Week, Study, Habit, Travel. Records would be localStorage unless the user wants a Supabase table (sync with the home PC).
-- Todo/memo/timers/study live in localStorage per PC, so the home PC hub starts empty for those.
+- Todo/memo/timers/study live in localStorage per PC, so the home PC hub starts empty for those. Asked on the home PC (2026-11-03) whether to sync them through a Supabase table: **the user declined, keep them per PC.** Don't offer it again unless asked.
 
 ## Build and release
 
