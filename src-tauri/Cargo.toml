@@ -1,6 +1,6 @@
 [package]
 name = "urigg-hub"
-version = "0.1.6"
+version = "0.1.7"
 description = "Security.log HUB — URIGG desktop app"
 edition = "2021"
 

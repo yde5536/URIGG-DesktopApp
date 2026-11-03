@@ -90,8 +90,8 @@
     { id: 'ctf', title: 'CTF', status: () => ({ text: S.ctf.length ? `${S.ctf.length}개 · 초보 ${S.ctf.filter((e) => e.beginner).length}` : '—' }),
       body: () => `<ul class="rows ctf">${S.ctf.map((e) => { const live = Date.parse(e.start) <= Date.now(); return `<li><a href="${esc(e.url)}">${esc(e.title)}${e.beginner ? '<b class="chip">초보</b>' : ''}</a><time>${live ? `진행 중 · ${Math.ceil((Date.parse(e.finish) - Date.now()) / 3_600_000)}시간 남음` : `${kst(Date.parse(e.start)).getUTCMonth() + 1}/${kst(Date.parse(e.start)).getUTCDate()} ${hm(e.start)} · ${ctfLen(e)}`}</time></li>`; }).join('') || '<li class="empty">45일 안에 예정된 CTF가 없어요.</li>'}</ul>` },
     { id: 'net', title: 'Network', status: () => { const m = lastMs(); return { text: m === undefined ? '—' : m === null ? '끊김' : `${m} ms`, warn: m === null }; }, body: () => netBig() },
-    { id: 'programs', title: 'Programs', status: () => ({ text: S.release?.tag || '—' }),
-      body: () => `<div class="prog"><img src="brand/logo/emblem-320.webp" alt="" width="56" height="56"><p><b style="font-size:1.375rem">코워크 캘린더</b><span>${esc(S.release?.tag || '최신 버전')} · Windows</span></p><a class="u-btn" href="https://github.com/yde5536/URIGG-ClaudeCalender/releases/latest/download/CoworkCalendar-setup.exe">Windows 다운로드</a><span class="prog__desc">대화로 짠 일정을 위젯·아이폰에 띄우는 캘린더</span></div>` },
+    // 위: 지금 쓰는 이 허브(버전·업데이트), 아래: 다른 프로그램 내려받기. 허브에서 허브를 받는 건 이상하니까
+    { id: 'programs', title: 'Programs', status: () => (hubLatest && appVer && hubLatest !== appVer ? { text: '새 버전', warn: true } : { text: appVer ? `v${appVer}` : '—' }), body: () => progBig() },
     // 명령어 설명서. 타이머가 돌면 상태 자리에 가장 먼저 끝나는 것의 남은 시간
     { id: 'cmds', title: 'Commands', status: () => { const n = nextEnd(); return n ? { text: `⏱ ${left(n - Date.now())}` } : { text: `${ALL_DOCS.length}개` }; }, body: () => cmdsBig() },
   ];
@@ -113,6 +113,38 @@
       ${d.opts.length ? `<h4>옵션</h4><dl class="cb__opts">${d.opts.map(([k, v]) => `<div><dt><code>${esc(k)}</code></dt><dd>${esc(v)}</dd></div>`).join('')}</dl>` : ''}
       ${d.ex.length ? `<h4>예시 <span>누르면 터미널 입력칸에 넣어요</span></h4><div class="cb__ex">${d.ex.map((x) => `<button type="button" data-ex="${esc(x)}"><code>${esc(x)}</code></button>`).join('')}</div>` : ''}
       ${d.notes.length ? `<h4>참고</h4><ul class="cb__notes">${d.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}`;
+  }
+  let appVer = null, hubLatest = null, hubChecked = 0;
+  T?.app?.getVersion?.().then((v) => { appVer = v; drawDock(); });
+  // 허브 최신 릴리스 (GitHub 공개 API, 로그인 없이 시간당 60번이라 칸을 열 때만, 10분에 한 번)
+  function loadHubLatest() {
+    if (Date.now() - hubChecked < 10 * 60_000) return;
+    hubChecked = Date.now();
+    Store.local('https://api.github.com/repos/yde5536/URIGG-DesktopApp/releases/latest').then((r) => { if (r?.tag_name) { hubLatest = r.tag_name.replace(/^v/, ''); drawDock(); if (open === 'programs') refreshBig(); } });
+  }
+  function progBig() {
+    loadHubLatest();
+    const newer = hubLatest && appVer && hubLatest !== appVer;
+    const state = !appVer ? '브라우저 미리보기라 버전이 없어요' : !hubLatest ? '최신 버전 확인 중…' : newer ? `<span class="is-warn">새 버전 v${esc(hubLatest)}이 있어요</span>` : '최신 버전이에요';
+    return `<div class="pg">
+      <section class="pg__self">
+        <img src="brand/logo/emblem-320.webp" alt="" width="84" height="84">
+        <div class="pg__info">
+          <p class="pg__crumb">지금 쓰는 프로그램</p>
+          <p class="pg__name">Security.log HUB</p>
+          <dl class="pg__facts">
+            <div><dt>버전</dt><dd>${appVer ? `v${esc(appVer)}` : '—'} · ${state}</dd></div>
+            <div><dt>자동 업데이트</dt><dd>${settings.update ? '켜짐 · 켤 때 확인하고 받아서 다시 시작해요' : '꺼짐 (설정에서 켜기)'}</dd></div>
+            <div><dt>설치 위치</dt><dd>이 PC 사용자 폴더 · Windows</dd></div>
+          </dl>
+          <p class="pg__acts"><button type="button" class="u-btn" data-act="hub-update">${newer ? '지금 업데이트' : '업데이트 확인'}</button><a class="u-btn-ghost" href="https://github.com/yde5536/URIGG-DesktopApp/releases">변경 기록 ↗</a></p>
+        </div>
+      </section>
+      <h3 class="pg__head">다른 프로그램</h3>
+      <ul class="pg__list">
+        <li><img src="images/calendar-icon-96.webp" alt="" width="44" height="44" style="border-radius:10px"><p><b>코워크 캘린더</b><span>${esc(S.release?.tag || '최신 버전')} · Windows · 대화로 짠 일정을 위젯·아이폰에 띄우는 캘린더</span></p><a class="u-btn" href="https://github.com/yde5536/URIGG-ClaudeCalender/releases/latest/download/CoworkCalendar-setup.exe">다운로드</a></li>
+      </ul>
+    </div>`;
   }
   const ctfLen = (e) => { const h = Math.round((Date.parse(e.finish) - Date.parse(e.start)) / 3_600_000); return h % 24 === 0 ? `${h / 24}일` : `${h}시간`; };
   const curVuln = () => S.vulns.length ? S.vulns[((vulnAt % S.vulns.length) + S.vulns.length) % S.vulns.length] : null;
@@ -210,6 +242,7 @@
         el.querySelectorAll('.cb__cmd').forEach((b) => b.classList.toggle('is-on', b === d));
         const det = el.querySelector('.cb__detail'); det.innerHTML = docDetail(docOf(docSel)); det.scrollTop = 0;
       }
+      if (e.target.closest('[data-act="hub-update"]')) { back(); exec('update'); }
       const x = e.target.closest('[data-ex]');
       if (x) { back(); cmd.value = x.dataset.ex; }
     });
@@ -410,7 +443,7 @@
         if (!d) return warnLine(`help: 모르는 명령어 '${esc(a[0])}'`);
         return `<b>${d.name}</b>  <span class="muted">${esc(d.chapter)} · ${esc(d.group)}</span>\n${esc(d.short)}\n\n<span class="ok">사용법</span>\n${d.usage.map((u) => `  ${esc(u)}`).join('\n')}${d.opts.length ? `\n\n<span class="ok">옵션</span>${kv(d.opts.map(([k, v]) => [esc(k), esc(v)]))}` : ''}${d.ex.length ? `\n<span class="ok">예시</span>\n${d.ex.map((x) => `  ${esc(x)}`).join('\n')}` : ''}${d.notes.length ? `\n\n${d.notes.map((n) => `<span class="muted">· ${esc(n)}</span>`).join('\n')}` : ''}`;
       }
-      return CMD_DOCS.map((c) => `<span class="ok">${esc(c.chapter)}</span>\n${kv(c.groups.map((g) => [esc(g.name), g.cmds.map((d) => d.name).join('  ')]))}`).join('') + '<span class="muted">help &lt;명령어&gt; 자세히 · open cmds 설명서 칸</span>';
+      return CMD_DOCS.map((c) => `<span class="chap">${esc(c.chapter)}</span>\n${kv(c.groups.map((g) => [esc(g.name), g.cmds.map((d) => d.name).join('  ')]))}`).join('') + '<span class="muted">help &lt;명령어&gt; 자세히 · open cmds 설명서 칸</span>';
     },
     fetch: () => {
       const nx = nextEvent(), m = mainDd(), nk = newKev();
@@ -455,6 +488,28 @@
     },
     lock: () => { setTimeout(lock, 150); return '<span class="muted">잠그는 중…</span>'; },
     clear: () => { body.querySelectorAll('p:not(.term__input):not(.hint), .ff').forEach((p) => p.remove()); return null; },
+
+    /* 일상: 기본 */
+    update: () => {
+      if (!T) return warnLine('앱에서만 돼요 (브라우저 미리보기)');
+      // 새 버전이 있으면 받는 동안 답이 없다가 그대로 다시 시작하므로, 그 안내를 먼저 찍는다
+      termLine('<span class="muted">확인하는 중… 새 버전이 있으면 받아서 저절로 다시 시작해요</span>');
+      return checkUpdate(false).then((r) => (r?.state === 'latest' ? `<span class="ok">✓</span> 최신 버전이에요 (v${esc(r.version)})` : '<span class="muted">새 버전을 받는 중이에요. 다 받으면 저절로 다시 시작해요</span>'));
+    },
+    version: () => `<b>Security.log HUB</b> v${esc(appVer || '?')}${hubLatest && appVer && hubLatest !== appVer ? `  <span class="warn">새 버전 v${esc(hubLatest)} · update로 받기</span>` : ''}\n<span class="muted">Tauri 2 · ${esc(navigator.userAgent.match(/Edg\/[\d.]+/)?.[0]?.replace('Edg/', 'WebView2 ') || 'browser')}</span>`,
+    reload: () => refreshAll().then(() => '<span class="ok">✓</span> 뉴스 · KEV · CTF · 일정 · D-day를 새로 불러왔어요'),
+    settings: () => { $('#settings').hidden = false; return '<span class="muted">설정을 열었어요 · Esc로 닫기</span>'; },
+    whoami: () => (Auth.email() ? `${esc(Auth.email())}  <span class="muted">urigg@hub</span>` : '<span class="muted">로그인하지 않았어요</span>'),
+    date: () => { const t = kst(); return `${t.getUTCFullYear()}년 ${t.getUTCMonth() + 1}월 ${t.getUTCDate()}일 ${WEEK[t.getUTCDay()]}요일 ${two(t.getUTCHours())}:${two(t.getUTCMinutes())}:${two(t.getUTCSeconds())} KST`; },
+    uptime: () => `허브를 켠 지 ${fmtDur(performance.now())}  <span class="muted">${hmOf(Date.now() - performance.now())}부터</span>`,
+    history: (a) => {
+      if (a[0] === 'clear') { history.length = 0; hAt = 0; return '<span class="ok">✓</span> 명령 기록을 지웠어요'; }
+      return history.length ? history.map((h, i) => `${String(i + 1).padStart(3)}  ${esc(h)}`).join('\n') : '<span class="muted">아직 친 명령이 없어요</span>';
+    },
+    echo: (a, rest) => esc(rest),
+    hide: () => { if (!win) return warnLine('앱에서만 돼요'); setTimeout(() => win.hide(), 150); return '<span class="muted">트레이로 숨겨요 · 트레이 아이콘을 누르면 돌아와요</span>'; },
+    exit: () => CMDS.hide(),
+    quit: () => { if (!T) return warnLine('앱에서만 돼요'); setTimeout(() => invoke('plugin:process|exit', { code: 0 }).catch(() => win?.close()), 300); return '<span class="muted">허브를 끝내요</span>'; },
 
     /* 일상: 시간 · 공부 */
     timer: (a) => {
@@ -662,7 +717,7 @@
     let out;
     try { out = CMDS[c] ? CMDS[c](a, rest) : `<span class="warn">bash: ${esc(c)}: command not found</span>  <span class="muted">help로 목록</span>`; }
     catch (err) { out = warnLine(`${esc(c)}: ${esc(err.message)}`); }
-    if (out instanceof Promise) { const p = termLine('<span class="muted">계산하는 중…</span>'); out.then((h) => { p.innerHTML = h; }).catch((err) => { p.innerHTML = warnLine(esc(err.message)); }); }
+    if (out instanceof Promise) { const p = termLine('<span class="muted">잠시만요…</span>'); out.then((h) => { p.innerHTML = h; }).catch((err) => { p.innerHTML = warnLine(esc(err.message)); }); }
     else if (out) termLine(out);
   };
   const t0 = kst();
@@ -797,7 +852,8 @@
     const [state, v] = String(r).split(':');
     $('#set-version').textContent = state === 'latest' ? `${v} · 최신` : `${v}로 업데이트 중…`;
     if (manual && state === 'latest') termLine(`<span class="ok">✓</span> 최신 버전이에요 (${esc(v)})`);
-  }).catch((err) => { if (manual) termLine(`<span class="warn">업데이트 확인 실패</span> <span class="muted">${esc(String(err))}</span>`); });
+    return { state, version: v };
+  }).catch((err) => { if (manual) termLine(`<span class="warn">업데이트 확인 실패</span> <span class="muted">${esc(String(err))}</span>`); else throw new Error(`업데이트 확인 실패: ${err}`); });
   T?.app?.getVersion?.().then((v) => { $('#set-version').textContent = v; });
   $('#set-check').onclick = () => checkUpdate(true);
 
@@ -809,7 +865,7 @@
     setInterval(() => { if (!document.hidden) refreshAll(); }, 30 * 60_000);
     setInterval(drawTimeline, 30_000);
     addEventListener('resize', drawTimeline);
-    if (settings.update) setTimeout(() => checkUpdate(false), 8000);
+    if (settings.update) setTimeout(() => checkUpdate(false).catch(() => {}), 8000);
   }
   applySize(settings.size);
   drawDock(); drawTimeline(); drawDdays(); buildAlerts(); drawGrass();

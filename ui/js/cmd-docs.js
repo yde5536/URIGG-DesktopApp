@@ -2,6 +2,24 @@
 // 새 명령어를 만들면 여기에도 한 칸 더한다: name · short(한 줄) · usage · opts · ex(예시) · notes
 window.CMD_DOCS = [
   { chapter: '일상', groups: [
+    { name: '기본', cmds: [
+      { name: 'help', short: '명령어 목록, 명령어 하나 자세히', usage: ['help', 'help <명령어>'], opts: [], ex: ['help', 'help timer'], notes: ['Commands 칸(open cmds)에서 눌러 보면 더 보기 편해요.', 'Tab을 누르면 명령어 이름이 자동으로 채워져요.'] },
+      { name: 'fetch', short: '오늘 요약 (일정, D-day, KEV, CTF, 할 일…)', usage: ['fetch'], opts: [], ex: ['fetch'], notes: ['허브를 열 때 저절로 한 번 나와요.'] },
+      { name: 'open', short: '사이드바 칸을 가운데로 크게', usage: ['open <칸>'], opts: [['<칸>', 'news · kev · vuln · ctf · net · programs · cmds']], ex: ['open kev', 'open cmds'], notes: ['Esc로 터미널로 돌아와요.'] },
+      { name: 'clear', short: '터미널 화면 비우기', usage: ['clear'], opts: [], ex: ['clear'], notes: [] },
+      { name: 'history', short: '지금까지 친 명령어 목록', usage: ['history', 'history clear'], opts: [['clear', '기록 지우기']], ex: ['history'], notes: ['↑ ↓ 키로 이전 명령을 다시 불러올 수도 있어요.', '허브를 다시 켜면 비워져요.'] },
+      { name: 'update', short: '새 버전 확인, 있으면 받아서 다시 시작', usage: ['update'], opts: [], ex: ['update'], notes: ['자동 업데이트가 켜져 있으면 허브를 켤 때마다 저절로 확인해요.', '받는 동안은 답이 없다가 새 버전으로 다시 켜져요.'] },
+      { name: 'version', short: '지금 버전, 새 버전이 있는지', usage: ['version'], opts: [], ex: ['version'], notes: ['Programs 칸에서도 볼 수 있어요.'] },
+      { name: 'reload', short: '데이터 새로 불러오기 (F5)', usage: ['reload'], opts: [], ex: ['reload'], notes: ['평소에는 30분마다 저절로 새로 불러와요.'] },
+      { name: 'settings', short: '설정 열기 (Ctrl+,)', usage: ['settings'], opts: [], ex: ['settings'], notes: [] },
+      { name: 'date', short: '지금 날짜와 시각 (한국 시간)', usage: ['date'], opts: [], ex: ['date'], notes: [] },
+      { name: 'uptime', short: '허브를 켠 지 얼마나 됐는지', usage: ['uptime'], opts: [], ex: ['uptime'], notes: [] },
+      { name: 'whoami', short: '로그인한 계정', usage: ['whoami'], opts: [], ex: ['whoami'], notes: [] },
+      { name: 'echo', short: '쓴 글을 그대로 찍기', usage: ['echo <글>'], opts: [], ex: ['echo hello'], notes: [] },
+      { name: 'lock', short: '잠그기 (Ctrl+L)', usage: ['lock'], opts: [], ex: ['lock'], notes: ['다음에는 PIN으로 열어요.'] },
+      { name: 'hide', short: '트레이로 숨기기', usage: ['hide', 'exit'], opts: [], ex: ['hide'], notes: ['exit도 같아요. 트레이 아이콘을 누르면 돌아와요.'] },
+      { name: 'quit', short: '허브 완전히 끝내기', usage: ['quit'], opts: [], ex: ['quit'], notes: ['타이머·알람은 남아 있다가 다음에 켤 때 이어져요.'] },
+    ] },
     { name: '시간 · 공부', cmds: [
       { name: 'timer', short: '타이머. 끝나면 터미널 위에 카드가 떠요 (소리 없음)',
         usage: ['timer <시간> [이름]', 'timer', 'timer rm <번호>', 'timer stop'],
@@ -46,13 +64,6 @@ window.CMD_DOCS = [
         opts: [['+ - * / %', '사칙연산, 나머지'], ['^', '거듭제곱 (2^10)'], ['( )', '괄호'], ['함수', 'sqrt abs round floor ceil log(상용) ln log2 sin cos tan(라디안) exp min max pow'], ['상수', 'pi, e'], ['수', '0xff, 0b1010, 1,500 (쉼표 가능), 1e6']],
         ex: ['calc 1500*12/7', 'calc 2^16', 'calc sqrt(2)*100', 'calc (85+92+78)/3'],
         notes: [] },
-    ] },
-    { name: '허브', cmds: [
-      { name: 'fetch', short: '오늘 요약 (일정, D-day, KEV, CTF, 할 일…)', usage: ['fetch'], opts: [], ex: ['fetch'], notes: ['허브를 열 때 저절로 한 번 나와요.'] },
-      { name: 'open', short: '사이드바 칸을 가운데로 크게', usage: ['open <칸>'], opts: [['<칸>', 'news · kev · vuln · ctf · net · programs · cmds']], ex: ['open kev', 'open cmds'], notes: ['Esc로 터미널로 돌아와요.'] },
-      { name: 'help', short: '명령어 목록, 명령어 하나 자세히', usage: ['help', 'help <명령어>'], opts: [], ex: ['help', 'help timer'], notes: ['Commands 칸(open cmds)에서 눌러 보면 더 보기 편해요.'] },
-      { name: 'clear', short: '터미널 화면 비우기', usage: ['clear'], opts: [], ex: ['clear'], notes: [] },
-      { name: 'lock', short: '잠그기 (Ctrl+L)', usage: ['lock'], opts: [], ex: ['lock'], notes: ['다음에는 PIN으로 열어요.'] },
     ] },
   ] },
 
