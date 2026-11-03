@@ -50,3 +50,12 @@ html, body { overflow-x: hidden; } /* 앱 창은 옆으로 스크롤하지 않�
 /* PIN 칸: 글자 간격이 마지막 글자 뒤에도 붙어 점들이 왼쪽으로 쏠리므로 같은 만큼 왼쪽을 띄운다 */
 .lock__pin input { padding-left: 0.4em; }
 .lock__pin input:placeholder-shown { padding-left: 0.05em; }
+
+/* 링크가 달린 줄은 <a style="display:contents"> 안에 칸이 있어서 위 .rows li > … 규칙이 안 걸렸다: 긴 제목이 날짜를 밀어냈음 */
+.rows li > a > :nth-child(2) { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rows li > a > time { color: var(--u-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.alerts li > a > b { color: var(--u-muted); text-align: center; }
+.alerts li.is-warn > a > b { color: var(--u-accent-text); }
+
+/* 창 전체 스크롤바도 다른 목록들처럼 얇은 반투명 막대로 */
+html { scrollbar-width: thin; scrollbar-color: rgb(255 255 255 / 0.22) transparent; }
