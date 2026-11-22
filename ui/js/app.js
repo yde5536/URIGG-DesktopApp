@@ -1055,7 +1055,7 @@
      명령어는 설명서 순서(자주 쓰는 기본 명령이 앞)로 먼저 맞는 것 */
   const CMD_NAMES = [...new Set([...ALL_DOCS.map((d) => d.name), ...Object.keys(CMDS)])];
   let ghostText = '', ghostWord = false;
-  function suggest(v) {
+  function ghostFor(v) {
     if (!v.trim()) return ['', false];
     for (let i = history.length - 1; i >= 0; i--) if (history[i].startsWith(v) && history[i] !== v) return [history[i].slice(v.length), false];
     const parts = v.split(' '), last = parts.at(-1);
@@ -1066,7 +1066,7 @@
   }
   function drawGhost() {
     const v = cmd.value, atEnd = cmd.selectionStart === v.length && cmd.selectionEnd === v.length;
-    [ghostText, ghostWord] = atEnd && document.activeElement === cmd ? suggest(v) : ['', false];
+    [ghostText, ghostWord] = atEnd && document.activeElement === cmd ? ghostFor(v) : ['', false];
     // 친 글은 자리만 차지하게 숨기고(같은 너비), 뒤에 이어질 부분만 흐리게 보인다
     ghost.innerHTML = ghostText ? `<i>${esc(v)}</i>${esc(ghostText)}` : '';
   }
