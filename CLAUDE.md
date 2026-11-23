@@ -11,7 +11,7 @@ The **허브 (hub)**: a Windows desktop app titled "Security.log HUB" for the us
 - Plugins: single-instance, window-state, opener (external links open in the default browser), autostart, updater, process. Tray icon with 열기 / 새로고침 / 종료. Rust command `check_update`.
 - Data: public data from `https://urigg.pages.dev/api/{news,kev,ctf,github,blog,net}?v=hub2` (the website sends CORS `*`); private data (events, ddays) from the same Supabase project as the Cowork Calendar, via `ui/js/auth.js`.
 - Login: lock screen first. First run: email + password (Supabase), then a 6-digit PIN (salted SHA-256 in localStorage, never sent anywhere; 5 wrong tries → password again). Session is stored under `sb-dfvcgacadkaglgtooxdy-auth-token` in supabase-js format, so the bundled calendar widget (`ui/calendar`, same origin) is logged in too. Auto-lock after 30 min idle (setting), Ctrl+L.
-- Settings (localStorage `urigg-hub-settings`): window size preset, close button → tray or quit, autostart, idle lock, auto update.
+- Settings (localStorage `urigg-hub-settings`): window size preset, close button → tray or quit, autostart, PIN on start (`startLock`, v0.4.2: off = open straight away when a session and PIN exist), idle lock (off/10/30/60/120 min), auto update.
 
 ## Structure (C: copy and diverge)
 

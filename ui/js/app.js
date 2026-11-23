@@ -32,7 +32,7 @@
 
   /* ── 설정 (이 PC에만) ── */
   const SET_KEY = 'urigg-hub-settings';
-  const settings = { size: '', close: 'tray', idle: 30, update: true, ...(JSON.parse(localStorage.getItem(SET_KEY) || '{}')) };
+  const settings = { size: '', close: 'tray', idle: 30, startLock: true, update: true, ...(JSON.parse(localStorage.getItem(SET_KEY) || '{}')) };
   const saveSettings = () => localStorage.setItem(SET_KEY, JSON.stringify(settings));
 
   /* ── 데이터 ── */
@@ -1188,7 +1188,7 @@
   /* ── 설정 ── */
   $('#btn-settings').onclick = () => { if (lockEl.hidden) $('#settings').hidden = !$('#settings').hidden; };
   $('#settings-close').onclick = () => { $('#settings').hidden = true; };
-  $('#set-size').value = settings.size; $('#set-close').value = settings.close; $('#set-idle').value = String(settings.idle); $('#set-update').checked = settings.update;
+  $('#set-size').value = settings.size; $('#set-close').value = settings.close; $('#set-idle').value = String(settings.idle); $('#set-startlock').checked = settings.startLock; $('#set-update').checked = settings.update;
   const applySize = (v) => {
     if (!v || !win) return;
     const [w, h] = v.split('x').map(Number), L = T.dpi?.LogicalSize || T.window?.LogicalSize;
@@ -1197,6 +1197,7 @@
   $('#set-size').onchange = (e) => { settings.size = e.target.value; saveSettings(); applySize(settings.size); };
   $('#set-close').onchange = (e) => { settings.close = e.target.value; saveSettings(); };
   $('#set-idle').onchange = (e) => { settings.idle = +e.target.value; saveSettings(); };
+  $('#set-startlock').onchange = (e) => { settings.startLock = e.target.checked; saveSettings(); };
   $('#set-update').onchange = (e) => { settings.update = e.target.checked; saveSettings(); };
   invoke('plugin:autostart|is_enabled').then((on) => { $('#set-autostart').checked = !!on; }).catch(() => { $('#set-autostart').disabled = true; });
   $('#set-autostart').onchange = (e) => invoke(`plugin:autostart|${e.target.checked ? 'enable' : 'disable'}`).catch(() => {});
@@ -1239,5 +1240,7 @@
   }
   applySize(settings.size);
   drawDock(); drawTimeline(); drawDdays(); buildAlerts(); drawGrass();
-  lock();
+  // 켤 때 PIN 묻기를 끄면, 이미 로그인과 PIN이 있는 PC에선 바로 연다 (로그인이 만료됐으면 잠금 화면으로)
+  if (!settings.startLock && Auth.hasSession() && Auth.hasPin()) Auth.session().then((s) => (s ? unlock() : lock()), () => lock());
+  else lock();
 })();
